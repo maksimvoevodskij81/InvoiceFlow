@@ -1,4 +1,5 @@
-﻿using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvoiceFlow.Api.Controllers;
@@ -16,7 +17,7 @@ public sealed class InvoicesController : ControllerBase
         {
             InvoiceId = Guid.NewGuid(),
             FileName = request.File.FileName,
-            Status = "Uploaded"
+            Status = InvoiceStatuses.Uploaded
         };
 
         return Ok(response);
