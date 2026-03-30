@@ -19,9 +19,9 @@ C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\Invo
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\staticwebassets.build.json
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\staticwebassets.development.json
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\scopedcss\bundle\InvoiceFlow.Api.styles.css
-C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\InvoiceFlow.Api.csproj.CopyComplete
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\InvoiceFlow.Api.dll
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\refint\InvoiceFlow.Api.dll
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\InvoiceFlow.Api.pdb
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\InvoiceFlow.Api.genruntimeconfig.cache
 C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\ref\InvoiceFlow.Api.dll
+C:\Users\Eigenaar\source\repos\InvoiceFlow\InvoiceFlow.Api\obj\Debug\net6.0\InvoiceF.41FD7494.Up2Date
