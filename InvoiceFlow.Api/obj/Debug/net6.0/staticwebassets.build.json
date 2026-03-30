@@ -1,0 +1,11 @@
+{
+  "Version": 1,
+  "Hash": "sqAY2oo0bq8FPksGSusXHUaBsxJb8GG6arzXQIR4bl4=",
+  "Source": "InvoiceFlow.Api",
+  "BasePath": "_content/InvoiceFlow.Api",
+  "Mode": "Default",
+  "ManifestType": "Build",
+  "ReferencedProjectsConfiguration": [],
+  "DiscoveryPatterns": [],
+  "Assets": []
+}
