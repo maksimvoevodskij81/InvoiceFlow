@@ -3,5 +3,7 @@
     public static class InvoiceStatuses
     {
         public const string Uploaded = "Uploaded";
+        public const string Parsed = "Parsed";
+
     }
 }

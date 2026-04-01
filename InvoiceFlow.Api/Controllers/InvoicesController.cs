@@ -63,7 +63,7 @@ public sealed class InvoicesController : ControllerBase
             FileName = file.FileName,
             FullPath = file.FullPath,
             ContentType = file.ContentType,
-            Status = InvoiceStatuses.Uploaded,
+            Status = InvoiceStatuses.Parsed,
             SupplierName = parseResult.SupplierName,
             InvoiceNumber = parseResult.InvoiceNumber,
             InvoiceDate = parseResult.InvoiceDate,
