@@ -3,7 +3,6 @@ using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using Microsoft.AspNetCore.Mvc;
 
-
 namespace InvoiceFlow.Api.Controllers;
 
 [ApiController]
@@ -11,10 +10,14 @@ namespace InvoiceFlow.Api.Controllers;
 public sealed class InvoicesController : ControllerBase
 {
     private readonly IInvoiceFolderReader _invoiceFolderReader;
+    private readonly IInvoiceParser _invoiceParser;
 
-    public InvoicesController(IInvoiceFolderReader invoiceFolderReader)
+    public InvoicesController(
+        IInvoiceFolderReader invoiceFolderReader,
+        IInvoiceParser invoiceParser)
     {
         _invoiceFolderReader = invoiceFolderReader;
+        _invoiceParser = invoiceParser;
     }
 
     [HttpPost("upload")]
@@ -35,7 +38,7 @@ public sealed class InvoicesController : ControllerBase
     [HttpPost("import-from-folder")]
     [ProducesResponseType(typeof(ImportInvoicesFromFolderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult<ImportInvoicesFromFolderResponse> ImportFromFolder([FromBody] ImportInvoicesFromFolderRequest request)
+    public async Task<ActionResult<ImportInvoicesFromFolderResponse>> ImportFromFolder([FromBody] ImportInvoicesFromFolderRequest request)
     {
         var file = _invoiceFolderReader.TakeNext(request.FolderPath);
 
@@ -43,6 +46,8 @@ public sealed class InvoicesController : ControllerBase
         {
             return NotFound();
         }
+
+        await _invoiceParser.ParseAsync(file);
 
         var response = new ImportInvoicesFromFolderResponse
         {
