@@ -47,16 +47,28 @@ public sealed class InvoicesController : ControllerBase
             return NotFound();
         }
 
-        await _invoiceParser.ParseAsync(file);
+        var parseResult = await _invoiceParser.ParseAsync(file);
 
-        var response = new ImportInvoicesFromFolderResponse
+        var response = CreateImportInvoicesFromFolderResponse(file, parseResult);
+
+        return Ok(response);
+    }
+
+    private static ImportInvoicesFromFolderResponse CreateImportInvoicesFromFolderResponse(
+        FolderInvoiceFile file,
+        InvoiceParseResult parseResult)
+    {
+        return new ImportInvoicesFromFolderResponse
         {
             FileName = file.FileName,
             FullPath = file.FullPath,
             ContentType = file.ContentType,
-            Status = InvoiceStatuses.Uploaded
+            Status = InvoiceStatuses.Uploaded,
+            SupplierName = parseResult.SupplierName,
+            InvoiceNumber = parseResult.InvoiceNumber,
+            InvoiceDate = parseResult.InvoiceDate,
+            TotalAmount = parseResult.TotalAmount,
+            Currency = parseResult.Currency
         };
-
-        return Ok(response);
     }
 }

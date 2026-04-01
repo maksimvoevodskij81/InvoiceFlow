@@ -2,5 +2,5 @@
 
 public interface IInvoiceParser
 {
-    Task ParseAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default);
+    Task<InvoiceParseResult> ParseAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default);
 }
