@@ -37,9 +37,15 @@ public sealed class InvoicesController : ControllerBase
 
     [HttpPost("import-from-folder")]
     [ProducesResponseType(typeof(ImportInvoicesFromFolderResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ImportInvoicesFromFolderResponse>> ImportFromFolder([FromBody] ImportInvoicesFromFolderRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.FolderPath))
+        {
+            return BadRequest("FolderPath is required.");
+        }
+
         var file = _invoiceFolderReader.TakeNext(request.FolderPath);
 
         if (file is null)
