@@ -34,4 +34,55 @@ public sealed class LocalInvoiceFolderReaderTests
             Directory.Delete(folderPath, true);
         }
     }
+
+    [Fact]
+    public void GetNext_ShouldReturnFirstSupportedFile_WhenFolderContainsSupportedFiles()
+    {
+        var reader = new LocalInvoiceFolderReader();
+        var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(folderPath);
+        File.WriteAllText(Path.Combine(folderPath, "b-invoice.pdf"), "test");
+        File.WriteAllText(Path.Combine(folderPath, "a-image.png"), "test");
+
+        try
+        {
+            var result = reader.GetNext(folderPath);
+
+            Assert.NotNull(result);
+            Assert.Equal("a-image.png", result.FileName);
+            Assert.Equal(Path.Combine(folderPath, "a-image.png"), result.FullPath);
+            Assert.Equal("image/png", result.ContentType);
+        }
+        finally
+        {
+            Directory.Delete(folderPath, true);
+        }
+    }
+
+    [Fact]
+    public void GetNext_ShouldIgnoreUnsupportedFiles_WhenFolderContainsMixedFiles()
+    {
+        var reader = new LocalInvoiceFolderReader();
+        var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(folderPath);
+        File.WriteAllText(Path.Combine(folderPath, "a-notes.txt"), "test");
+        File.WriteAllText(Path.Combine(folderPath, "b-data.json"), "test");
+        File.WriteAllText(Path.Combine(folderPath, "c-invoice.pdf"), "test");
+
+        try
+        {
+            var result = reader.GetNext(folderPath);
+
+            Assert.NotNull(result);
+            Assert.Equal("c-invoice.pdf", result.FileName);
+            Assert.Equal(Path.Combine(folderPath, "c-invoice.pdf"), result.FullPath);
+            Assert.Equal("application/pdf", result.ContentType);
+        }
+        finally
+        {
+            Directory.Delete(folderPath, true);
+        }
+    }
 }
