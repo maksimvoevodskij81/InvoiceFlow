@@ -3,4 +3,5 @@
 public interface IInvoiceFolderReader
 {
     FolderInvoiceFile? GetNext(string folderPath);
+    FolderInvoiceFile? TakeNext(string folderPath);
 }

@@ -85,4 +85,52 @@ public sealed class LocalInvoiceFolderReaderTests
             Directory.Delete(folderPath, true);
         }
     }
+
+    [Fact]
+    public void TakeNext_ShouldMoveFileToProcessedFolder_WhenSupportedFileExists()
+    {
+        var reader = new LocalInvoiceFolderReader();
+        var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(folderPath);
+        File.WriteAllText(Path.Combine(folderPath, "invoice.pdf"), "test");
+
+        try
+        {
+            var result = reader.TakeNext(folderPath);
+
+            Assert.NotNull(result);
+            Assert.Equal("invoice.pdf", result.FileName);
+            Assert.Equal("application/pdf", result.ContentType);
+            Assert.Equal(Path.Combine(folderPath, "Processed", "invoice.pdf"), result.FullPath);
+            Assert.True(File.Exists(result.FullPath));
+            Assert.False(File.Exists(Path.Combine(folderPath, "invoice.pdf")));
+        }
+        finally
+        {
+            Directory.Delete(folderPath, true);
+        }
+    }
+
+    [Fact]
+    public void TakeNext_ShouldReturnNull_WhenFolderHasNoSupportedFiles()
+    {
+        var reader = new LocalInvoiceFolderReader();
+        var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(folderPath);
+        File.WriteAllText(Path.Combine(folderPath, "notes.txt"), "test");
+
+        try
+        {
+            var result = reader.TakeNext(folderPath);
+
+            Assert.Null(result);
+            Assert.False(Directory.Exists(Path.Combine(folderPath, "Processed")));
+        }
+        finally
+        {
+            Directory.Delete(folderPath, true);
+        }
+    }
 }

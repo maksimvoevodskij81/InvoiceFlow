@@ -43,6 +43,31 @@ public sealed class LocalInvoiceFolderReader : IInvoiceFolderReader
         };
     }
 
+    public FolderInvoiceFile? TakeNext(string folderPath)
+    {
+        var file = GetNext(folderPath);
+
+        if (file is null)
+        {
+            return null;
+        }
+
+        var processedFolderPath = Path.Combine(folderPath, "Processed");
+
+        Directory.CreateDirectory(processedFolderPath);
+
+        var processedFilePath = Path.Combine(processedFolderPath, file.FileName);
+
+        File.Move(file.FullPath, processedFilePath, true);
+
+        return new FolderInvoiceFile
+        {
+            FileName = file.FileName,
+            FullPath = processedFilePath,
+            ContentType = file.ContentType
+        };
+    }
+
     private static string GetContentType(string filePath)
     {
         var extension = Path.GetExtension(filePath);
