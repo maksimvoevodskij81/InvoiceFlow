@@ -1,5 +1,6 @@
 ﻿using InvoiceFlow.Api.Controllers;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
+using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,7 +14,8 @@ public sealed class InvoicesControllerTests
         var controller = new InvoicesController(
             new LocalInvoiceFolderReader(),
             new FakeInvoiceParser(),
-            new FakeSupplierMatcher());
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore());
 
         var request = new ImportInvoicesFromFolderRequest
         {
@@ -33,7 +35,8 @@ public sealed class InvoicesControllerTests
         var controller = new InvoicesController(
             new LocalInvoiceFolderReader(),
             new FakeInvoiceParser(),
-            new FakeSupplierMatcher());
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore());
 
         var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
@@ -55,5 +58,26 @@ public sealed class InvoicesControllerTests
         {
             Directory.Delete(folderPath, true);
         }
+    }
+
+    [Fact]
+    public async Task Upload_ShouldReturnBadRequest_WhenFileIsMissing()
+    {
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore());
+
+        var request = new UploadInvoiceRequest
+        {
+            File = default!
+        };
+
+        var result = await controller.Upload(request);
+
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
+
+        Assert.Equal("File is required.", badRequestResult.Value);
     }
 }

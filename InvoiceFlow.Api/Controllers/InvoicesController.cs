@@ -30,6 +30,11 @@ public sealed class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<UploadInvoiceAcceptedResponse>> Upload([FromForm] UploadInvoiceRequest request)
     {
+        if (request.File is null || request.File.Length == 0)
+        {
+            return BadRequest("File is required.");
+        }
+
         var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(request.File);
 
         var response = new UploadInvoiceAcceptedResponse
