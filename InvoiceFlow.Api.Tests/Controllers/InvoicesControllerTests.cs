@@ -2,6 +2,7 @@
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvoiceFlow.Api.Tests.Controllers;
@@ -79,5 +80,30 @@ public sealed class InvoicesControllerTests
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
 
         Assert.Equal("File is required.", badRequestResult.Value);
+    }
+
+    [Fact]
+    public async Task Upload_ShouldReturnBadRequest_WhenFileTypeIsNotSupported()
+    {
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore());
+
+        await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+
+        var formFile = new FormFile(stream, 0, stream.Length, "file", "invoice.docx");
+
+        var request = new UploadInvoiceRequest
+        {
+            File = formFile
+        };
+
+        var result = await controller.Upload(request);
+
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
+
+        Assert.Equal("Only PDF, JPG, JPEG, PNG, TIF, and TIFF files are allowed.", badRequestResult.Value);
     }
 }

@@ -13,6 +13,15 @@ public sealed class InvoicesController : ControllerBase
     private readonly IInvoiceParser _invoiceParser;
     private readonly ISupplierMatcher _supplierMatcher;
     private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
+    private static readonly string[] AllowedUploadExtensions =
+    {
+    ".pdf",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".tif",
+    ".tiff"
+};
     public InvoicesController(
         IInvoiceFolderReader invoiceFolderReader,
         IInvoiceParser invoiceParser,
@@ -25,14 +34,23 @@ public sealed class InvoicesController : ControllerBase
         _uploadedInvoiceFileStore = uploadedInvoiceFileStore;
     }
 
+
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<UploadInvoiceAcceptedResponse>> Upload([FromForm] UploadInvoiceRequest request)
     {
         if (request.File is null || request.File.Length == 0)
         {
             return BadRequest("File is required.");
+        }
+
+        var fileExtension = Path.GetExtension(request.File.FileName);
+
+        if (!AllowedUploadExtensions.Contains(fileExtension, StringComparer.OrdinalIgnoreCase))
+        {
+            return BadRequest("Only PDF, JPG, JPEG, PNG, TIF, and TIFF files are allowed.");
         }
 
         var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(request.File);
