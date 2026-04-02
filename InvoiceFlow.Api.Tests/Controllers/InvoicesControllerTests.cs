@@ -12,7 +12,8 @@ public sealed class InvoicesControllerTests
     {
         var controller = new InvoicesController(
             new LocalInvoiceFolderReader(),
-            new FakeInvoiceParser());
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher());
 
         var request = new ImportInvoicesFromFolderRequest
         {
@@ -31,7 +32,8 @@ public sealed class InvoicesControllerTests
     {
         var controller = new InvoicesController(
             new LocalInvoiceFolderReader(),
-            new FakeInvoiceParser());
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher());
 
         var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
