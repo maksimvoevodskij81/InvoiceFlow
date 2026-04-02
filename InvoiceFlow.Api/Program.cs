@@ -11,6 +11,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IInvoiceFolderReader, LocalInvoiceFolderReader>();
 builder.Services.AddSingleton<IInvoiceParser, FakeInvoiceParser>();
+builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

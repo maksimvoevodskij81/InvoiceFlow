@@ -11,13 +11,15 @@ public sealed class InvoicesController : ControllerBase
 {
     private readonly IInvoiceFolderReader _invoiceFolderReader;
     private readonly IInvoiceParser _invoiceParser;
-
+    private readonly ISupplierMatcher _supplierMatcher;
     public InvoicesController(
         IInvoiceFolderReader invoiceFolderReader,
-        IInvoiceParser invoiceParser)
+        IInvoiceParser invoiceParser,
+        ISupplierMatcher supplierMatcher)
     {
         _invoiceFolderReader = invoiceFolderReader;
         _invoiceParser = invoiceParser;
+        _supplierMatcher = supplierMatcher;
     }
 
     [HttpPost("upload")]
@@ -54,15 +56,16 @@ public sealed class InvoicesController : ControllerBase
         }
 
         var parseResult = await _invoiceParser.ParseAsync(file);
-
-        var response = CreateImportInvoicesFromFolderResponse(file, parseResult);
+        var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult);
+        var response = CreateImportInvoicesFromFolderResponse(file, parseResult, supplierMatchResult);
 
         return Ok(response);
     }
 
     private static ImportInvoicesFromFolderResponse CreateImportInvoicesFromFolderResponse(
-        FolderInvoiceFile file,
-        InvoiceParseResult parseResult)
+    FolderInvoiceFile file,
+    InvoiceParseResult parseResult,
+    SupplierMatchResult supplierMatchResult)
     {
         return new ImportInvoicesFromFolderResponse
         {
@@ -74,7 +77,13 @@ public sealed class InvoicesController : ControllerBase
             InvoiceNumber = parseResult.InvoiceNumber,
             InvoiceDate = parseResult.InvoiceDate,
             TotalAmount = parseResult.TotalAmount,
-            Currency = parseResult.Currency
+            Currency = parseResult.Currency,
+            IsSupplierMatched = supplierMatchResult.IsMatched,
+            RequiresSupplierReview = supplierMatchResult.RequiresReview,
+            SupplierMatchedBy = supplierMatchResult.MatchedBy,
+            InternalSupplierId = supplierMatchResult.InternalSupplierId,
+            ExactSupplierId = supplierMatchResult.ExactSupplierId,
+            SupplierMatchMessage = supplierMatchResult.Message
         };
     }
 }
