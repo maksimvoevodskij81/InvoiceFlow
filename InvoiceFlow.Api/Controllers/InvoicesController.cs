@@ -13,6 +13,7 @@ public sealed class InvoicesController : ControllerBase
     private readonly IInvoiceParser _invoiceParser;
     private readonly ISupplierMatcher _supplierMatcher;
     private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
+    private const long MaxUploadFileSizeInBytes = 10 * 1024 * 1024;
     private static readonly string[] AllowedUploadExtensions =
     {
     ".pdf",
@@ -51,6 +52,11 @@ public sealed class InvoicesController : ControllerBase
         if (!AllowedUploadExtensions.Contains(fileExtension, StringComparer.OrdinalIgnoreCase))
         {
             return BadRequest("Only PDF, JPG, JPEG, PNG, TIF, and TIFF files are allowed.");
+        }
+
+        if (request.File.Length > MaxUploadFileSizeInBytes)
+        {
+            return BadRequest("File size must not exceed 10 MB.");
         }
 
         var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(request.File);

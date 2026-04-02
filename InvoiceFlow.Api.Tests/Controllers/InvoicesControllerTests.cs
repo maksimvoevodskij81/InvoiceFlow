@@ -106,4 +106,30 @@ public sealed class InvoicesControllerTests
 
         Assert.Equal("Only PDF, JPG, JPEG, PNG, TIF, and TIFF files are allowed.", badRequestResult.Value);
     }
+
+    [Fact]
+    public async Task Upload_ShouldReturnBadRequest_WhenFileIsTooLarge()
+    {
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore());
+
+        var buffer = new byte[(10 * 1024 * 1024) + 1];
+        await using var stream = new MemoryStream(buffer);
+
+        var formFile = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf");
+
+        var request = new UploadInvoiceRequest
+        {
+            File = formFile
+        };
+
+        var result = await controller.Upload(request);
+
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
+
+        Assert.Equal("File size must not exceed 10 MB.", badRequestResult.Value);
+    }
 }
