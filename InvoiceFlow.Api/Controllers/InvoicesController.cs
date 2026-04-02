@@ -12,26 +12,31 @@ public sealed class InvoicesController : ControllerBase
     private readonly IInvoiceFolderReader _invoiceFolderReader;
     private readonly IInvoiceParser _invoiceParser;
     private readonly ISupplierMatcher _supplierMatcher;
+    private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
     public InvoicesController(
         IInvoiceFolderReader invoiceFolderReader,
         IInvoiceParser invoiceParser,
-        ISupplierMatcher supplierMatcher)
+        ISupplierMatcher supplierMatcher,
+        IUploadedInvoiceFileStore uploadedInvoiceFileStore)
     {
         _invoiceFolderReader = invoiceFolderReader;
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
+        _uploadedInvoiceFileStore = uploadedInvoiceFileStore;
     }
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(UploadInvoiceResponse), StatusCodes.Status200OK)]
-    public ActionResult<UploadInvoiceResponse> Upload([FromForm] UploadInvoiceRequest request)
+    [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<UploadInvoiceAcceptedResponse>> Upload([FromForm] UploadInvoiceRequest request)
     {
-        var response = new UploadInvoiceResponse
+        var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(request.File);
+
+        var response = new UploadInvoiceAcceptedResponse
         {
-            InvoiceId = Guid.NewGuid(),
-            FileName = request.File.FileName,
-            Status = InvoiceStatuses.Uploaded
+            InvoiceId = Guid.NewGuid().ToString(),
+            Status = InvoiceStatuses.Processing,
+            Message = $"Invoice uploaded successfully. File saved to: {storedFilePath}"
         };
 
         return Ok(response);

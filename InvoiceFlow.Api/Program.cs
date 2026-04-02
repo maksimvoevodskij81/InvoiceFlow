@@ -1,4 +1,5 @@
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
+using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IInvoiceFolderReader, LocalInvoiceFolderReader>();
 builder.Services.AddSingleton<IInvoiceParser, FakeInvoiceParser>();
 builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
+builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
