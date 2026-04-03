@@ -1,4 +1,5 @@
 ﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using Microsoft.AspNetCore.Mvc;
@@ -92,6 +93,20 @@ public sealed class InvoicesController : ControllerBase
         var parseResult = await _invoiceParser.ParseAsync(file);
         var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult);
         var response = CreateImportInvoicesFromFolderResponse(file, parseResult, supplierMatchResult);
+
+        return Ok(response);
+    }
+
+    [HttpGet("{id}/status")]
+    [ProducesResponseType(typeof(GetInvoiceStatusResponse), StatusCodes.Status200OK)]
+    public ActionResult<GetInvoiceStatusResponse> GetStatus(string id)
+    {
+        var response = new GetInvoiceStatusResponse
+        {
+            InvoiceId = id,
+            Status = InvoiceStatuses.Processing,
+            Message = "Invoice is still being processed."
+        };
 
         return Ok(response);
     }
