@@ -2,14 +2,16 @@
 
 namespace InvoiceFlow.Api.Tests.Infrastructure;
 
+[Collection("NonParallel File System Tests")]
 public sealed class LocalInvoiceFolderReaderTests
 {
     [Fact]
     public void GetNext_ShouldReturnNull_WhenFolderDoesNotExist()
     {
         var reader = new LocalInvoiceFolderReader();
+        var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
-        var result = reader.GetNext(@"C:\definitely-not-existing-folder-123");
+        var result = reader.GetNext(folderPath);
 
         Assert.Null(result);
     }

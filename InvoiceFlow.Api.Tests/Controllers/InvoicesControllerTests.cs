@@ -1,4 +1,6 @@
-﻿using InvoiceFlow.Api.Controllers;
+﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Controllers;
+using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure;
@@ -131,5 +133,24 @@ public sealed class InvoicesControllerTests
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
 
         Assert.Equal("File size must not exceed 10 MB.", badRequestResult.Value);
+    }
+
+    [Fact]
+    public void GetStatus_ShouldReturnProcessingResponse()
+    {
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore());
+
+        var result = controller.GetStatus("test-invoice-123");
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceStatusResponse>(okResult.Value);
+
+        Assert.Equal("test-invoice-123", response.InvoiceId);
+        Assert.Equal(InvoiceStatuses.Processing, response.Status);
+        Assert.Equal("Invoice is still being processed.", response.Message);
     }
 }

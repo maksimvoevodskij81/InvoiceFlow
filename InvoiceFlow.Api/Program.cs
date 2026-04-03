@@ -14,6 +14,8 @@ builder.Services.AddSingleton<IInvoiceFolderReader, LocalInvoiceFolderReader>();
 builder.Services.AddSingleton<IInvoiceParser, FakeInvoiceParser>();
 builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
+builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
+builder.Services.AddSingleton<IUploadedInvoiceStore, InMemoryUploadedInvoiceStore>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

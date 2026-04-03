@@ -14,6 +14,7 @@ public sealed class InvoicesController : ControllerBase
     private readonly IInvoiceParser _invoiceParser;
     private readonly ISupplierMatcher _supplierMatcher;
     private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
+    private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
     private const long MaxUploadFileSizeInBytes = 10 * 1024 * 1024;
     private static readonly string[] AllowedUploadExtensions =
     {
@@ -28,12 +29,14 @@ public sealed class InvoicesController : ControllerBase
         IInvoiceFolderReader invoiceFolderReader,
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
-        IUploadedInvoiceFileStore uploadedInvoiceFileStore)
+        IUploadedInvoiceFileStore uploadedInvoiceFileStore,
+        IUploadedInvoiceStore uploadedInvoiceStore)
     {
         _invoiceFolderReader = invoiceFolderReader;
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
         _uploadedInvoiceFileStore = uploadedInvoiceFileStore;
+        _uploadedInvoiceStore = uploadedInvoiceStore;
     }
 
 
@@ -41,7 +44,9 @@ public sealed class InvoicesController : ControllerBase
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<UploadInvoiceAcceptedResponse>> Upload([FromForm] UploadInvoiceRequest request)
+    public async Task<ActionResult<UploadInvoiceAcceptedResponse>> Upload(
+    [FromForm] UploadInvoiceRequest request,
+    CancellationToken cancellationToken)
     {
         if (request.File is null || request.File.Length == 0)
         {
@@ -60,13 +65,26 @@ public sealed class InvoicesController : ControllerBase
             return BadRequest("File size must not exceed 10 MB.");
         }
 
-        var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(request.File);
+        var invoiceId = Guid.NewGuid().ToString();
+        var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(request.File, cancellationToken);
+
+        var record = new UploadedInvoiceRecord
+        {
+            InvoiceId = invoiceId,
+            OriginalFileName = request.File.FileName,
+            StoredFilePath = storedFilePath,
+            Status = InvoiceStatuses.Processing,
+            Message = "Invoice upload received.",
+            CreatedAtUtc = DateTime.UtcNow
+        };
+
+        await _uploadedInvoiceStore.SaveAsync(record, cancellationToken);
 
         var response = new UploadInvoiceAcceptedResponse
         {
-            InvoiceId = Guid.NewGuid().ToString(),
-            Status = InvoiceStatuses.Processing,
-            Message = $"Invoice uploaded successfully. File saved to: {storedFilePath}"
+            InvoiceId = invoiceId,
+            Status = record.Status,
+            Message = record.Message
         };
 
         return Ok(response);
@@ -99,13 +117,23 @@ public sealed class InvoicesController : ControllerBase
 
     [HttpGet("{id}/status")]
     [ProducesResponseType(typeof(GetInvoiceStatusResponse), StatusCodes.Status200OK)]
-    public ActionResult<GetInvoiceStatusResponse> GetStatus(string id)
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<GetInvoiceStatusResponse>> GetStatus(
+    string id,
+    CancellationToken cancellationToken)
     {
+        var record = await _uploadedInvoiceStore.GetByIdAsync(id, cancellationToken);
+
+        if (record is null)
+        {
+            return NotFound();
+        }
+
         var response = new GetInvoiceStatusResponse
         {
-            InvoiceId = id,
-            Status = InvoiceStatuses.Processing,
-            Message = "Invoice is still being processed."
+            InvoiceId = record.InvoiceId,
+            Status = record.Status,
+            Message = record.Message ?? string.Empty
         };
 
         return Ok(response);
