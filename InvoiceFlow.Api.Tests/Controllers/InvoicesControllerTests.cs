@@ -18,7 +18,8 @@ public sealed class InvoicesControllerTests
             new LocalInvoiceFolderReader(),
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
-            new LocalUploadedInvoiceFileStore());
+            new LocalUploadedInvoiceFileStore(),
+            new FakeUploadedInvoiceStore());
 
         var request = new ImportInvoicesFromFolderRequest
         {
@@ -39,7 +40,8 @@ public sealed class InvoicesControllerTests
             new LocalInvoiceFolderReader(),
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
-            new LocalUploadedInvoiceFileStore());
+            new LocalUploadedInvoiceFileStore()
+            , new FakeUploadedInvoiceStore());
 
         var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
@@ -70,14 +72,15 @@ public sealed class InvoicesControllerTests
             new LocalInvoiceFolderReader(),
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
-            new LocalUploadedInvoiceFileStore());
+            new LocalUploadedInvoiceFileStore()
+            , new FakeUploadedInvoiceStore());
 
         var request = new UploadInvoiceRequest
         {
             File = default!
         };
 
-        var result = await controller.Upload(request);
+        var result = await controller.Upload(request, CancellationToken.None);
 
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
 
@@ -91,7 +94,8 @@ public sealed class InvoicesControllerTests
             new LocalInvoiceFolderReader(),
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
-            new LocalUploadedInvoiceFileStore());
+            new LocalUploadedInvoiceFileStore(),
+            new FakeUploadedInvoiceStore());
 
         await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
 
@@ -102,7 +106,7 @@ public sealed class InvoicesControllerTests
             File = formFile
         };
 
-        var result = await controller.Upload(request);
+        var result = await controller.Upload(request, CancellationToken.None);
 
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
 
@@ -116,7 +120,8 @@ public sealed class InvoicesControllerTests
             new LocalInvoiceFolderReader(),
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
-            new LocalUploadedInvoiceFileStore());
+            new LocalUploadedInvoiceFileStore(),
+            new FakeUploadedInvoiceStore());
 
         var buffer = new byte[(10 * 1024 * 1024) + 1];
         await using var stream = new MemoryStream(buffer);
@@ -128,7 +133,7 @@ public sealed class InvoicesControllerTests
             File = formFile
         };
 
-        var result = await controller.Upload(request);
+        var result = await controller.Upload(request, CancellationToken.None);
 
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
 
@@ -136,20 +141,33 @@ public sealed class InvoicesControllerTests
     }
 
     [Fact]
-    public void GetStatus_ShouldReturnProcessingResponse()
+    public async Task GetStatus_ShouldReturnProcessingResponse()
     {
-        var controller = new InvoicesController(
-            new LocalInvoiceFolderReader(),
-            new FakeInvoiceParser(),
-            new FakeSupplierMatcher(),
-            new LocalUploadedInvoiceFileStore());
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
 
-        var result = controller.GetStatus("test-invoice-123");
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Processing,
+            Message = "Invoice is still being processed.",
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
+        var controller = new InvoicesController(
+               new LocalInvoiceFolderReader(),
+               new FakeInvoiceParser(),
+               new FakeSupplierMatcher(),
+               new LocalUploadedInvoiceFileStore(),
+               uploadedInvoiceStore);
+
+        var result = await controller.GetStatus("123", CancellationToken.None);
 
         var okResult = Assert.IsType<OkObjectResult>(result.Result);
         var response = Assert.IsType<GetInvoiceStatusResponse>(okResult.Value);
 
-        Assert.Equal("test-invoice-123", response.InvoiceId);
+        Assert.Equal("123", response.InvoiceId);
         Assert.Equal(InvoiceStatuses.Processing, response.Status);
         Assert.Equal("Invoice is still being processed.", response.Message);
     }
