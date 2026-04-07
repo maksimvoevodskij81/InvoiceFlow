@@ -13,40 +13,41 @@ public sealed class InvoicesController : ControllerBase
     private readonly IInvoiceFolderReader _invoiceFolderReader;
     private readonly IInvoiceParser _invoiceParser;
     private readonly ISupplierMatcher _supplierMatcher;
-    private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
+    private readonly IInvoiceUploadService _invoiceUploadService;
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
     private const long MaxUploadFileSizeInBytes = 10 * 1024 * 1024;
+
     private static readonly string[] AllowedUploadExtensions =
     {
-    ".pdf",
-    ".jpg",
-    ".jpeg",
-    ".png",
-    ".tif",
-    ".tiff"
-};
+        ".pdf",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".tif",
+        ".tiff"
+    };
+
     public InvoicesController(
         IInvoiceFolderReader invoiceFolderReader,
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
-        IUploadedInvoiceFileStore uploadedInvoiceFileStore,
+        IInvoiceUploadService invoiceUploadService,
         IUploadedInvoiceStore uploadedInvoiceStore)
     {
         _invoiceFolderReader = invoiceFolderReader;
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
-        _uploadedInvoiceFileStore = uploadedInvoiceFileStore;
+        _invoiceUploadService = invoiceUploadService;
         _uploadedInvoiceStore = uploadedInvoiceStore;
     }
-
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<UploadInvoiceAcceptedResponse>> Upload(
-    [FromForm] UploadInvoiceRequest request,
-    CancellationToken cancellationToken)
+        [FromForm] UploadInvoiceRequest request,
+        CancellationToken cancellationToken)
     {
         if (request.File is null || request.File.Length == 0)
         {
@@ -65,27 +66,7 @@ public sealed class InvoicesController : ControllerBase
             return BadRequest("File size must not exceed 10 MB.");
         }
 
-        var invoiceId = Guid.NewGuid().ToString();
-        var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(request.File, cancellationToken);
-
-        var record = new UploadedInvoiceRecord
-        {
-            InvoiceId = invoiceId,
-            OriginalFileName = request.File.FileName,
-            StoredFilePath = storedFilePath,
-            Status = InvoiceStatuses.Processing,
-            Message = "Invoice upload received.",
-            CreatedAtUtc = DateTime.UtcNow
-        };
-
-        await _uploadedInvoiceStore.SaveAsync(record, cancellationToken);
-
-        var response = new UploadInvoiceAcceptedResponse
-        {
-            InvoiceId = invoiceId,
-            Status = record.Status,
-            Message = record.Message
-        };
+        var response = await _invoiceUploadService.UploadAsync(request.File, cancellationToken);
 
         return Ok(response);
     }
@@ -119,8 +100,8 @@ public sealed class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(GetInvoiceStatusResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GetInvoiceStatusResponse>> GetStatus(
-    string id,
-    CancellationToken cancellationToken)
+        string id,
+        CancellationToken cancellationToken)
     {
         var record = await _uploadedInvoiceStore.GetByIdAsync(id, cancellationToken);
 
@@ -140,9 +121,9 @@ public sealed class InvoicesController : ControllerBase
     }
 
     private static ImportInvoicesFromFolderResponse CreateImportInvoicesFromFolderResponse(
-    FolderInvoiceFile file,
-    InvoiceParseResult parseResult,
-    SupplierMatchResult supplierMatchResult)
+        FolderInvoiceFile file,
+        InvoiceParseResult parseResult,
+        SupplierMatchResult supplierMatchResult)
     {
         return new ImportInvoicesFromFolderResponse
         {

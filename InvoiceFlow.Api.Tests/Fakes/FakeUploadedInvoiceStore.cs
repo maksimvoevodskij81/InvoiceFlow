@@ -1,4 +1,5 @@
 ﻿using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+namespace InvoiceFlow.Api.Tests.Fakes;
 
 public sealed class FakeUploadedInvoiceStore : IUploadedInvoiceStore
 {
