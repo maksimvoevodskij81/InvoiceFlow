@@ -171,4 +171,61 @@ public sealed class InvoicesControllerTests
         Assert.Equal(InvoiceStatuses.Processing, response.Status);
         Assert.Equal("Invoice is still being processed.", response.Message);
     }
+
+    [Fact]
+    public async Task Upload_ShouldSaveUploadedInvoiceRecord_AndReturnProcessingResponse()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore(),
+            uploadedInvoiceStore);
+
+        await using var stream = new MemoryStream(new byte[] { 1, 2, 3, 4 });
+        var formFile = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/pdf"
+        };
+
+        var request = new UploadInvoiceRequest
+        {
+            File = formFile
+        };
+
+        var result = await controller.Upload(request, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<UploadInvoiceAcceptedResponse>(okResult.Value);
+
+        Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
+        Assert.Equal(InvoiceStatuses.Processing, response.Status);
+        Assert.Equal("Invoice upload received.", response.Message);
+
+        var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+        Assert.NotNull(savedRecord);
+        Assert.Equal(response.InvoiceId, savedRecord.InvoiceId);
+        Assert.Equal("invoice.pdf", savedRecord.OriginalFileName);
+        Assert.Equal(InvoiceStatuses.Processing, savedRecord.Status);
+        Assert.Equal("Invoice upload received.", savedRecord.Message);
+        Assert.False(string.IsNullOrWhiteSpace(savedRecord.StoredFilePath));
+    }
+
+    [Fact]
+    public async Task GetStatus_ShouldReturnNotFound_WhenInvoiceDoesNotExist()
+    {
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore(),
+            new FakeUploadedInvoiceStore());
+
+        var result = await controller.GetStatus("missing-id", CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result.Result);
+    }
 }
