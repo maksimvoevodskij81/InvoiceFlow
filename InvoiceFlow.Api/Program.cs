@@ -1,6 +1,8 @@
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure;
+using InvoiceFlow.Api.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,8 +17,14 @@ builder.Services.AddSingleton<IInvoiceParser, FakeInvoiceParser>();
 builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
-builder.Services.AddSingleton<IUploadedInvoiceStore, InMemoryUploadedInvoiceStore>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
+
+builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("InvoiceFlowDatabase"));
+});
+
+builder.Services.AddScoped<IUploadedInvoiceStore, EfUploadedInvoiceStore>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

@@ -1,0 +1,40 @@
+﻿namespace InvoiceFlow.Api.Infrastructure.Persistence;
+
+public sealed class UploadedInvoiceEntity
+{
+    public required string InvoiceId { get; set; }
+
+    public required string OriginalFileName { get; set; }
+
+    public required string StoredFilePath { get; set; }
+
+    public required string Status { get; set; }
+
+    public string? Message { get; set; }
+
+    public DateTime CreatedAtUtc { get; set; }
+
+    public required string FileHash { get; set; }
+
+    public string? SupplierName { get; set; }
+
+    public string? InvoiceNumber { get; set; }
+
+    public DateOnly? InvoiceDate { get; set; }
+
+    public decimal? TotalAmount { get; set; }
+
+    public string? Currency { get; set; }
+
+    public bool IsSupplierMatched { get; set; }
+
+    public bool RequiresSupplierReview { get; set; }
+
+    public string? SupplierMatchedBy { get; set; }
+
+    public string? InternalSupplierId { get; set; }
+
+    public string? ExactSupplierId { get; set; }
+
+    public string? SupplierMatchMessage { get; set; }
+}
