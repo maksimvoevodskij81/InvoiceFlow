@@ -1,5 +1,6 @@
 ﻿using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Controllers;
+using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
@@ -335,5 +336,77 @@ public sealed class InvoicesControllerTests
         Assert.Null(response.InternalSupplierId);
         Assert.Null(response.ExactSupplierId);
         Assert.Equal("Multiple supplier candidates found. Review required.", response.SupplierMatchMessage);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnInvoiceDetails_WhenInvoiceExists()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "details-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = new DateTime(2026, 4, 8, 10, 30, 0, DateTimeKind.Utc),
+            FileHash = "test-hash-details-123",
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = true,
+            RequiresSupplierReview = false,
+            SupplierMatchedBy = "BankAccount",
+            InternalSupplierId = "internal-supplier-001",
+            ExactSupplierId = "exact-supplier-001",
+            SupplierMatchMessage = "Supplier matched successfully."
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore);
+
+        var result = await controller.GetById("details-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.Equal("details-123", response.InvoiceId);
+        Assert.Equal("invoice.pdf", response.OriginalFileName);
+        Assert.Equal(new DateTime(2026, 4, 8, 10, 30, 0, DateTimeKind.Utc), response.CreatedAtUtc);
+        Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+        Assert.Equal("Invoice parsed successfully.", response.Message);
+        Assert.Equal("Demo Supplier", response.SupplierName);
+        Assert.Equal("INV-001", response.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 4, 1), response.InvoiceDate);
+        Assert.Equal(123.45m, response.TotalAmount);
+        Assert.Equal("EUR", response.Currency);
+        Assert.True(response.IsSupplierMatched);
+        Assert.False(response.RequiresSupplierReview);
+        Assert.Equal("BankAccount", response.SupplierMatchedBy);
+        Assert.Equal("internal-supplier-001", response.InternalSupplierId);
+        Assert.Equal("exact-supplier-001", response.ExactSupplierId);
+        Assert.Equal("Supplier matched successfully.", response.SupplierMatchMessage);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnNotFound_WhenInvoiceDoesNotExist()
+    {
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore());
+
+        var result = await controller.GetById("missing-details-id", CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result.Result);
     }
 }

@@ -1,4 +1,5 @@
 ﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
@@ -114,6 +115,44 @@ public sealed class InvoicesController : ControllerBase
         var response = new GetInvoiceStatusResponse
         {
             InvoiceId = record.InvoiceId,
+            Status = record.Status,
+            Message = record.Message ?? string.Empty,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            InvoiceDate = record.InvoiceDate,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            IsSupplierMatched = record.IsSupplierMatched,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            SupplierMatchedBy = record.SupplierMatchedBy,
+            InternalSupplierId = record.InternalSupplierId,
+            ExactSupplierId = record.ExactSupplierId,
+            SupplierMatchMessage = record.SupplierMatchMessage
+        };
+
+        return Ok(response);
+    }
+
+
+    [HttpGet("{id}")]
+    [ProducesResponseType(typeof(GetInvoiceDetailsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<GetInvoiceDetailsResponse>> GetById(
+    string id,
+    CancellationToken cancellationToken)
+    {
+        var record = await _uploadedInvoiceStore.GetByIdAsync(id, cancellationToken);
+
+        if (record is null)
+        {
+            return NotFound();
+        }
+
+        var response = new GetInvoiceDetailsResponse
+        {
+            InvoiceId = record.InvoiceId,
+            OriginalFileName = record.OriginalFileName,
+            CreatedAtUtc = record.CreatedAtUtc,
             Status = record.Status,
             Message = record.Message ?? string.Empty,
             SupplierName = record.SupplierName,
