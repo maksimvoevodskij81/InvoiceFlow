@@ -15,6 +15,7 @@ public sealed class InvoicesController : ControllerBase
     private readonly ISupplierMatcher _supplierMatcher;
     private readonly IInvoiceUploadService _invoiceUploadService;
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
+
     private const long MaxUploadFileSizeInBytes = 10 * 1024 * 1024;
 
     private static readonly string[] AllowedUploadExtensions =
@@ -114,7 +115,12 @@ public sealed class InvoicesController : ControllerBase
         {
             InvoiceId = record.InvoiceId,
             Status = record.Status,
-            Message = record.Message ?? string.Empty
+            Message = record.Message ?? string.Empty,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            InvoiceDate = record.InvoiceDate,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency
         };
 
         return Ok(response);

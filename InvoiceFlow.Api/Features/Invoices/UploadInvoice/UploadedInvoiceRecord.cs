@@ -1,17 +1,26 @@
-﻿namespace InvoiceFlow.Api.Features.Invoices.UploadInvoice
+﻿namespace InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+
+public sealed class UploadedInvoiceRecord
 {
-    public sealed class UploadedInvoiceRecord
-    {
-        public required string InvoiceId { get; init; }
+    public required string InvoiceId { get; init; }
 
-        public required string OriginalFileName { get; init; }
+    public required string OriginalFileName { get; init; }
 
-        public required string StoredFilePath { get; init; }
+    public required string StoredFilePath { get; init; }
 
-        public required string Status { get; set; }
+    public required string Status { get; set; }
 
-        public string? Message { get; set; }
+    public string? Message { get; set; }
 
-        public DateTime CreatedAtUtc { get; init; }
-    }
+    public DateTime CreatedAtUtc { get; init; }
+
+    public string? SupplierName { get; set; }
+
+    public string? InvoiceNumber { get; set; }
+
+    public DateOnly? InvoiceDate { get; set; }
+
+    public decimal? TotalAmount { get; set; }
+
+    public string? Currency { get; set; }
 }

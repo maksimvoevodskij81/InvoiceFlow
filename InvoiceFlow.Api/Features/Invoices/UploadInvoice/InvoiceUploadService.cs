@@ -43,14 +43,24 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         try
         {
             var uploadedFile = CreateUploadedFolderInvoiceFile(file, storedFilePath);
+            var parseResult = await _invoiceParser.ParseAsync(uploadedFile, cancellationToken);
 
-            await _invoiceParser.ParseAsync(uploadedFile, cancellationToken);
+            var parsedRecord = new UploadedInvoiceRecord
+            {
+                InvoiceId = record.InvoiceId,
+                OriginalFileName = record.OriginalFileName,
+                StoredFilePath = record.StoredFilePath,
+                Status = InvoiceStatuses.Parsed,
+                Message = "Invoice parsed successfully.",
+                CreatedAtUtc = record.CreatedAtUtc,
+                SupplierName = parseResult.SupplierName,
+                InvoiceNumber = parseResult.InvoiceNumber,
+                InvoiceDate = parseResult.InvoiceDate,
+                TotalAmount = parseResult.TotalAmount,
+                Currency = parseResult.Currency
+            };
 
-            await _uploadedInvoiceStore.UpdateStatusAsync(
-                invoiceId,
-                InvoiceStatuses.Parsed,
-                "Invoice parsed successfully.",
-                cancellationToken);
+            await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
 
             return new UploadInvoiceAcceptedResponse
             {

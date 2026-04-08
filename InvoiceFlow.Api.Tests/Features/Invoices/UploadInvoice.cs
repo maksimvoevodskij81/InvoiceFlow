@@ -50,6 +50,11 @@ public sealed class InvoiceUploadServiceTests
             Assert.True(File.Exists(savedRecord.StoredFilePath));
             Assert.Equal(InvoiceStatuses.Parsed, savedRecord.Status);
             Assert.Equal("Invoice parsed successfully.", savedRecord.Message);
+            Assert.Equal("Demo Supplier", savedRecord.SupplierName);
+            Assert.Equal("INV-001", savedRecord.InvoiceNumber);
+            Assert.Equal(new DateOnly(2026, 4, 1), savedRecord.InvoiceDate);
+            Assert.Equal(123.45m, savedRecord.TotalAmount);
+            Assert.Equal("EUR", savedRecord.Currency);
         }
         finally
         {
@@ -102,6 +107,11 @@ public sealed class InvoiceUploadServiceTests
             Assert.True(File.Exists(savedRecord.StoredFilePath));
             Assert.Equal(InvoiceStatuses.Failed, savedRecord.Status);
             Assert.Equal("Invoice parsing failed.", savedRecord.Message);
+            Assert.Null(savedRecord.SupplierName);
+            Assert.Null(savedRecord.InvoiceNumber);
+            Assert.Null(savedRecord.InvoiceDate);
+            Assert.Null(savedRecord.TotalAmount);
+            Assert.Null(savedRecord.Currency);
         }
         finally
         {
