@@ -1,20 +1,24 @@
 ﻿using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
+using Microsoft.AspNetCore.Http;
 
 namespace InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 
 public sealed class InvoiceUploadService : IInvoiceUploadService
 {
     private readonly IInvoiceParser _invoiceParser;
+    private readonly ISupplierMatcher _supplierMatcher;
     private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
 
     public InvoiceUploadService(
         IInvoiceParser invoiceParser,
+        ISupplierMatcher supplierMatcher,
         IUploadedInvoiceFileStore uploadedInvoiceFileStore,
         IUploadedInvoiceStore uploadedInvoiceStore)
     {
         _invoiceParser = invoiceParser;
+        _supplierMatcher = supplierMatcher;
         _uploadedInvoiceFileStore = uploadedInvoiceFileStore;
         _uploadedInvoiceStore = uploadedInvoiceStore;
     }
@@ -44,6 +48,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         {
             var uploadedFile = CreateUploadedFolderInvoiceFile(file, storedFilePath);
             var parseResult = await _invoiceParser.ParseAsync(uploadedFile, cancellationToken);
+            var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult);
 
             var parsedRecord = new UploadedInvoiceRecord
             {
@@ -57,7 +62,13 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 InvoiceNumber = parseResult.InvoiceNumber,
                 InvoiceDate = parseResult.InvoiceDate,
                 TotalAmount = parseResult.TotalAmount,
-                Currency = parseResult.Currency
+                Currency = parseResult.Currency,
+                IsSupplierMatched = supplierMatchResult.IsMatched,
+                RequiresSupplierReview = supplierMatchResult.RequiresReview,
+                SupplierMatchedBy = supplierMatchResult.MatchedBy,
+                InternalSupplierId = supplierMatchResult.InternalSupplierId,
+                ExactSupplierId = supplierMatchResult.ExactSupplierId,
+                SupplierMatchMessage = supplierMatchResult.Message
             };
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);

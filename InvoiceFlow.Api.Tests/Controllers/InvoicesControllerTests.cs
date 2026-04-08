@@ -231,4 +231,106 @@ public sealed class InvoicesControllerTests
 
         Assert.IsType<NotFoundResult>(result.Result);
     }
+
+    [Fact]
+    public async Task GetStatus_ShouldReturnParsedResponse_WithParsedInvoiceSummaryAndSupplierMatch()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "parsed-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = true,
+            RequiresSupplierReview = false,
+            SupplierMatchedBy = "BankAccount",
+            InternalSupplierId = "internal-supplier-001",
+            ExactSupplierId = "exact-supplier-001",
+            SupplierMatchMessage = "Supplier matched successfully."
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore);
+
+        var result = await controller.GetStatus("parsed-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceStatusResponse>(okResult.Value);
+
+        Assert.Equal("parsed-123", response.InvoiceId);
+        Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+        Assert.Equal("Invoice parsed successfully.", response.Message);
+        Assert.Equal("Demo Supplier", response.SupplierName);
+        Assert.Equal("INV-001", response.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 4, 1), response.InvoiceDate);
+        Assert.Equal(123.45m, response.TotalAmount);
+        Assert.Equal("EUR", response.Currency);
+        Assert.True(response.IsSupplierMatched);
+        Assert.False(response.RequiresSupplierReview);
+        Assert.Equal("BankAccount", response.SupplierMatchedBy);
+        Assert.Equal("internal-supplier-001", response.InternalSupplierId);
+        Assert.Equal("exact-supplier-001", response.ExactSupplierId);
+        Assert.Equal("Supplier matched successfully.", response.SupplierMatchMessage);
+    }
+
+    [Fact]
+    public async Task GetStatus_ShouldReturnReviewFlags_WhenSupplierReviewIsRequired()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "review-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = "Name",
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            SupplierMatchMessage = "Multiple supplier candidates found. Review required."
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore);
+
+        var result = await controller.GetStatus("review-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceStatusResponse>(okResult.Value);
+
+        Assert.Equal("review-123", response.InvoiceId);
+        Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+        Assert.False(response.IsSupplierMatched);
+        Assert.True(response.RequiresSupplierReview);
+        Assert.Equal("Name", response.SupplierMatchedBy);
+        Assert.Null(response.InternalSupplierId);
+        Assert.Null(response.ExactSupplierId);
+        Assert.Equal("Multiple supplier candidates found. Review required.", response.SupplierMatchMessage);
+    }
 }

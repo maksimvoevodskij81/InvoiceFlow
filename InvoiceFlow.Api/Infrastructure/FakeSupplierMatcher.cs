@@ -9,14 +9,13 @@ public sealed class FakeSupplierMatcher : ISupplierMatcher
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(parseResult);
-
         var result = new SupplierMatchResult
         {
             IsMatched = true,
             RequiresReview = false,
-            MatchedBy = "IBAN",
-            InternalSupplierId = "SUP-001",
-            ExactSupplierId = "EXACT-001",
+            MatchedBy = "BankAccount",
+            InternalSupplierId = "internal-supplier-001",
+            ExactSupplierId = "exact-supplier-001",
             Message = "Supplier matched successfully."
         };
 

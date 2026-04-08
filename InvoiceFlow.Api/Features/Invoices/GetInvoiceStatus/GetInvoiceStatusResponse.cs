@@ -17,4 +17,16 @@ public sealed class GetInvoiceStatusResponse
     public decimal? TotalAmount { get; set; }
 
     public string? Currency { get; set; }
+
+    public bool IsSupplierMatched { get; set; }
+
+    public bool RequiresSupplierReview { get; set; }
+
+    public string? SupplierMatchedBy { get; set; }
+
+    public string? InternalSupplierId { get; set; }
+
+    public string? ExactSupplierId { get; set; }
+
+    public string? SupplierMatchMessage { get; set; }
 }

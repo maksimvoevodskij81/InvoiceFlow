@@ -120,7 +120,13 @@ public sealed class InvoicesController : ControllerBase
             InvoiceNumber = record.InvoiceNumber,
             InvoiceDate = record.InvoiceDate,
             TotalAmount = record.TotalAmount,
-            Currency = record.Currency
+            Currency = record.Currency,
+            IsSupplierMatched = record.IsSupplierMatched,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            SupplierMatchedBy = record.SupplierMatchedBy,
+            InternalSupplierId = record.InternalSupplierId,
+            ExactSupplierId = record.ExactSupplierId,
+            SupplierMatchMessage = record.SupplierMatchMessage
         };
 
         return Ok(response);

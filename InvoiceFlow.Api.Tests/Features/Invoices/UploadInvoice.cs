@@ -11,7 +11,7 @@ namespace InvoiceFlow.Api.Tests.Features.Invoices.UploadInvoice;
 public sealed class InvoiceUploadServiceTests
 {
     [Fact]
-    public async Task UploadAsync_ShouldSaveRecord_ParseAndReturnParsed_WhenParsingSucceeds()
+    public async Task UploadAsync_ShouldSaveRecord_ParseMatchAndReturnParsed_WhenSupplierIsMatched()
     {
         var originalCurrentDirectory = Directory.GetCurrentDirectory();
         var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -24,6 +24,7 @@ public sealed class InvoiceUploadServiceTests
             var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
             var service = new InvoiceUploadService(
                 new FakeInvoiceParser(),
+                new FakeSupplierMatcher(),
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore);
 
@@ -55,6 +56,67 @@ public sealed class InvoiceUploadServiceTests
             Assert.Equal(new DateOnly(2026, 4, 1), savedRecord.InvoiceDate);
             Assert.Equal(123.45m, savedRecord.TotalAmount);
             Assert.Equal("EUR", savedRecord.Currency);
+            Assert.True(savedRecord.IsSupplierMatched);
+            Assert.False(savedRecord.RequiresSupplierReview);
+            Assert.Equal("BankAccount", savedRecord.SupplierMatchedBy);
+            Assert.Equal("internal-supplier-001", savedRecord.InternalSupplierId);
+            Assert.Equal("exact-supplier-001", savedRecord.ExactSupplierId);
+            Assert.Equal("Supplier matched successfully.", savedRecord.SupplierMatchMessage);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldSaveReviewFlags_WhenSupplierNeedsReview()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var service = new InvoiceUploadService(
+                new FakeInvoiceParser(),
+                new ReviewRequiredSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore);
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+
+            Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
+            Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+            Assert.Equal("Invoice parsed successfully.", response.Message);
+
+            var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.NotNull(savedRecord);
+            Assert.False(string.IsNullOrWhiteSpace(savedRecord.StoredFilePath));
+            Assert.EndsWith(".pdf", savedRecord.StoredFilePath, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("UploadedInvoices", savedRecord.StoredFilePath, StringComparison.OrdinalIgnoreCase);
+            Assert.True(savedRecord.IsSupplierMatched == false);
+            Assert.True(savedRecord.RequiresSupplierReview);
+            Assert.Equal("Name", savedRecord.SupplierMatchedBy);
+            Assert.Null(savedRecord.InternalSupplierId);
+            Assert.Null(savedRecord.ExactSupplierId);
+            Assert.Equal("Multiple supplier candidates found. Review required.", savedRecord.SupplierMatchMessage);
         }
         finally
         {
@@ -81,6 +143,7 @@ public sealed class InvoiceUploadServiceTests
             var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
             var service = new InvoiceUploadService(
                 new ThrowingInvoiceParser(),
+                new FakeSupplierMatcher(),
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore);
 
@@ -112,6 +175,12 @@ public sealed class InvoiceUploadServiceTests
             Assert.Null(savedRecord.InvoiceDate);
             Assert.Null(savedRecord.TotalAmount);
             Assert.Null(savedRecord.Currency);
+            Assert.False(savedRecord.IsSupplierMatched);
+            Assert.False(savedRecord.RequiresSupplierReview);
+            Assert.Null(savedRecord.SupplierMatchedBy);
+            Assert.Null(savedRecord.InternalSupplierId);
+            Assert.Null(savedRecord.ExactSupplierId);
+            Assert.Null(savedRecord.SupplierMatchMessage);
         }
         finally
         {
@@ -129,6 +198,24 @@ public sealed class InvoiceUploadServiceTests
         public Task<InvoiceParseResult> ParseAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default)
         {
             throw new InvalidOperationException("Parsing failed.");
+        }
+    }
+
+    private sealed class ReviewRequiredSupplierMatcher : ISupplierMatcher
+    {
+        public Task<SupplierMatchResult> MatchAsync(InvoiceParseResult parseResult, CancellationToken cancellationToken = default)
+        {
+            var result = new SupplierMatchResult
+            {
+                IsMatched = false,
+                RequiresReview = true,
+                MatchedBy = "Name",
+                InternalSupplierId = null,
+                ExactSupplierId = null,
+                Message = "Multiple supplier candidates found. Review required."
+            };
+
+            return Task.FromResult(result);
         }
     }
 }
