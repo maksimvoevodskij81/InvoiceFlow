@@ -14,6 +14,8 @@ public sealed class UploadedInvoiceRecord
 
     public DateTime CreatedAtUtc { get; init; }
 
+    public required string FileHash { get; init; }
+
     public string? SupplierName { get; set; }
 
     public string? InvoiceNumber { get; set; }

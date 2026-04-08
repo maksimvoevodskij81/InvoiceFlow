@@ -197,7 +197,8 @@ public sealed class InvoicesControllerTests
             StoredFilePath = Path.Combine("temp", "invoice.pdf"),
             Status = InvoiceStatuses.Processing,
             Message = "Invoice is still being processed.",
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "test-hash-123"
         });
 
         var controller = new InvoicesController(
@@ -255,7 +256,8 @@ public sealed class InvoicesControllerTests
             SupplierMatchedBy = "BankAccount",
             InternalSupplierId = "internal-supplier-001",
             ExactSupplierId = "exact-supplier-001",
-            SupplierMatchMessage = "Supplier matched successfully."
+            SupplierMatchMessage = "Supplier matched successfully.",
+            FileHash = "test-hash-123"
         });
 
         var controller = new InvoicesController(
@@ -309,7 +311,8 @@ public sealed class InvoicesControllerTests
             SupplierMatchedBy = "Name",
             InternalSupplierId = null,
             ExactSupplierId = null,
-            SupplierMatchMessage = "Multiple supplier candidates found. Review required."
+            SupplierMatchMessage = "Multiple supplier candidates found. Review required.",
+            FileHash = "test-hash-123"
         });
 
         var controller = new InvoicesController(

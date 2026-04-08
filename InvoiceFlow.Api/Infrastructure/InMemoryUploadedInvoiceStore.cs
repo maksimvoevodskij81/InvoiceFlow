@@ -25,6 +25,15 @@ public sealed class InMemoryUploadedInvoiceStore : IUploadedInvoiceStore
         return Task.FromResult(record);
     }
 
+    public Task<UploadedInvoiceRecord?> GetByFileHashAsync(string fileHash, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(fileHash);
+
+        var record = _records.Values.FirstOrDefault(x => string.Equals(x.FileHash, fileHash, StringComparison.Ordinal));
+
+        return Task.FromResult(record);
+    }
+
     public Task UpdateStatusAsync(
         string invoiceId,
         string status,

@@ -5,6 +5,7 @@ public interface IUploadedInvoiceStore
     Task SaveAsync(UploadedInvoiceRecord record, CancellationToken cancellationToken = default);
 
     Task<UploadedInvoiceRecord?> GetByIdAsync(string invoiceId, CancellationToken cancellationToken = default);
+    Task<UploadedInvoiceRecord?> GetByFileHashAsync(string fileHash, CancellationToken cancellationToken = default);
 
     Task UpdateStatusAsync(
         string invoiceId,

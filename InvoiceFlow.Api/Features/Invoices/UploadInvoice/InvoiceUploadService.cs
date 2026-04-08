@@ -1,4 +1,5 @@
-﻿using InvoiceFlow.Api.Contracts;
+﻿using System.Security.Cryptography;
+using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using Microsoft.AspNetCore.Http;
 
@@ -29,6 +30,19 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     {
         ArgumentNullException.ThrowIfNull(file);
 
+        var fileHash = await ComputeFileHashAsync(file, cancellationToken);
+        var existingRecord = await _uploadedInvoiceStore.GetByFileHashAsync(fileHash, cancellationToken);
+
+        if (existingRecord is not null)
+        {
+            return new UploadInvoiceAcceptedResponse
+            {
+                InvoiceId = existingRecord.InvoiceId,
+                Status = InvoiceStatuses.Duplicate,
+                Message = "Duplicate invoice upload detected."
+            };
+        }
+
         var invoiceId = Guid.NewGuid().ToString();
         var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(file, cancellationToken);
 
@@ -39,7 +53,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             StoredFilePath = storedFilePath,
             Status = InvoiceStatuses.Processing,
             Message = "Invoice upload received.",
-            CreatedAtUtc = DateTime.UtcNow
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = fileHash
         };
 
         await _uploadedInvoiceStore.SaveAsync(record, cancellationToken);
@@ -58,6 +73,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 Status = InvoiceStatuses.Parsed,
                 Message = "Invoice parsed successfully.",
                 CreatedAtUtc = record.CreatedAtUtc,
+                FileHash = record.FileHash,
                 SupplierName = parseResult.SupplierName,
                 InvoiceNumber = parseResult.InvoiceNumber,
                 InvoiceDate = parseResult.InvoiceDate,
@@ -95,6 +111,14 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 Message = "Invoice parsing failed."
             };
         }
+    }
+
+    private static async Task<string> ComputeFileHashAsync(IFormFile file, CancellationToken cancellationToken)
+    {
+        await using var stream = file.OpenReadStream();
+        var hashBytes = await SHA256.HashDataAsync(stream, cancellationToken);
+
+        return Convert.ToHexString(hashBytes);
     }
 
     private static FolderInvoiceFile CreateUploadedFolderInvoiceFile(IFormFile file, string storedFilePath)
