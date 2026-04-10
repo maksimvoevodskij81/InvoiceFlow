@@ -37,4 +37,11 @@ public sealed class UploadedInvoiceRecord
     public string? ExactSupplierId { get; set; }
 
     public string? SupplierMatchMessage { get; set; }
+    public string? ExactPostingStatus { get; set; }
+
+    public string? ExactDocumentId { get; set; }
+
+    public DateTime? PostedToExactAtUtc { get; set; }
+
+    public string? ExactPostingError { get; set; }
 }

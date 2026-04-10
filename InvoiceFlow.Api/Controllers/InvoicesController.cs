@@ -127,7 +127,11 @@ public sealed class InvoicesController : ControllerBase
             SupplierMatchedBy = record.SupplierMatchedBy,
             InternalSupplierId = record.InternalSupplierId,
             ExactSupplierId = record.ExactSupplierId,
-            SupplierMatchMessage = record.SupplierMatchMessage
+            SupplierMatchMessage = record.SupplierMatchMessage,
+            ExactPostingStatus = record.ExactPostingStatus,
+            ExactDocumentId = record.ExactDocumentId,
+            PostedToExactAtUtc = record.PostedToExactAtUtc,
+            ExactPostingError = record.ExactPostingError
         };
 
         return Ok(response);
@@ -165,7 +169,11 @@ public sealed class InvoicesController : ControllerBase
             SupplierMatchedBy = record.SupplierMatchedBy,
             InternalSupplierId = record.InternalSupplierId,
             ExactSupplierId = record.ExactSupplierId,
-            SupplierMatchMessage = record.SupplierMatchMessage
+            SupplierMatchMessage = record.SupplierMatchMessage,
+            ExactPostingStatus = record.ExactPostingStatus,
+            ExactDocumentId = record.ExactDocumentId,
+            PostedToExactAtUtc = record.PostedToExactAtUtc,
+            ExactPostingError = record.ExactPostingError
         };
 
         return Ok(response);

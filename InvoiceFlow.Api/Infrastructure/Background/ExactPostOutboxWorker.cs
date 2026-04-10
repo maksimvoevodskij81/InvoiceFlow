@@ -63,6 +63,7 @@ public sealed class ExactPostOutboxWorker : BackgroundService
             message.LastError = null;
 
             await dbContext.SaveChangesAsync(cancellationToken);
+            var invoiceToUpdate = await uploadedInvoiceStore.GetByIdAsync(message.InvoiceId, cancellationToken);
 
             try
             {
@@ -86,12 +87,30 @@ public sealed class ExactPostOutboxWorker : BackgroundService
                     message.ExternalDocumentId = result.ExternalDocumentId;
                     message.NextAttemptAtUtc = null;
                     message.LastError = null;
+
+                    if (invoiceToUpdate is not null)
+                    {
+                        invoiceToUpdate.ExactPostingStatus = ExactPostingStatuses.Posted;
+                        invoiceToUpdate.ExactDocumentId = result.ExternalDocumentId;
+                        invoiceToUpdate.PostedToExactAtUtc = utcNow;
+                        invoiceToUpdate.ExactPostingError = null;
+
+                        await uploadedInvoiceStore.SaveAsync(invoiceToUpdate, cancellationToken);
+                    }
                 }
                 else
                 {
                     message.Status = ExactPostOutboxStatuses.Failed;
                     message.LastError = result.ErrorMessage ?? "Exact posting failed.";
                     message.NextAttemptAtUtc = utcNow.AddMinutes(GetRetryDelayMinutes(message.AttemptCount));
+
+                    if (invoiceToUpdate is not null)
+                    {
+                        invoiceToUpdate.ExactPostingStatus = ExactPostingStatuses.Failed;
+                        invoiceToUpdate.ExactPostingError = result.ErrorMessage ?? "Exact posting failed.";
+
+                        await uploadedInvoiceStore.SaveAsync(invoiceToUpdate, cancellationToken);
+                    }
                 }
 
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -104,6 +123,13 @@ public sealed class ExactPostOutboxWorker : BackgroundService
                 message.LastError = exception.Message;
                 message.NextAttemptAtUtc = utcNow.AddMinutes(GetRetryDelayMinutes(message.AttemptCount));
 
+                if (invoiceToUpdate is not null)
+                {
+                    invoiceToUpdate.ExactPostingStatus = ExactPostingStatuses.Failed;
+                    invoiceToUpdate.ExactPostingError = exception.Message;
+
+                    await uploadedInvoiceStore.SaveAsync(invoiceToUpdate, cancellationToken);
+                }
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
         }

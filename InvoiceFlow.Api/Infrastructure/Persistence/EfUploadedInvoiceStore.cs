@@ -99,7 +99,11 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             SupplierMatchedBy = record.SupplierMatchedBy,
             InternalSupplierId = record.InternalSupplierId,
             ExactSupplierId = record.ExactSupplierId,
-            SupplierMatchMessage = record.SupplierMatchMessage
+            SupplierMatchMessage = record.SupplierMatchMessage,
+            ExactPostingStatus = record.ExactPostingStatus,
+            ExactDocumentId = record.ExactDocumentId,
+            PostedToExactAtUtc = record.PostedToExactAtUtc,
+            ExactPostingError = record.ExactPostingError
         };
     }
 
@@ -124,7 +128,11 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             SupplierMatchedBy = entity.SupplierMatchedBy,
             InternalSupplierId = entity.InternalSupplierId,
             ExactSupplierId = entity.ExactSupplierId,
-            SupplierMatchMessage = entity.SupplierMatchMessage
+            SupplierMatchMessage = entity.SupplierMatchMessage,
+            ExactPostingStatus = entity.ExactPostingStatus,
+            ExactDocumentId = entity.ExactDocumentId,
+            PostedToExactAtUtc = entity.PostedToExactAtUtc,
+            ExactPostingError = entity.ExactPostingError
         };
     }
 
@@ -147,5 +155,9 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
         entity.InternalSupplierId = record.InternalSupplierId;
         entity.ExactSupplierId = record.ExactSupplierId;
         entity.SupplierMatchMessage = record.SupplierMatchMessage;
+        entity.ExactPostingStatus = record.ExactPostingStatus;
+        entity.ExactDocumentId = record.ExactDocumentId;
+        entity.PostedToExactAtUtc = record.PostedToExactAtUtc;
+        entity.ExactPostingError = record.ExactPostingError;
     }
 }

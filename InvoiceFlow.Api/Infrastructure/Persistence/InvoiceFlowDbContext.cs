@@ -63,6 +63,15 @@ public sealed class InvoiceFlowDbContext : DbContext
         uploadedInvoice.HasIndex(x => x.FileHash)
             .IsUnique();
 
+        uploadedInvoice.Property(x => x.ExactPostingStatus)
+            .HasMaxLength(32);
+
+        uploadedInvoice.Property(x => x.ExactDocumentId)
+            .HasMaxLength(128);
+
+        uploadedInvoice.Property(x => x.ExactPostingError)
+            .HasMaxLength(1024);
+
         var exactPostOutbox = modelBuilder.Entity<ExactPostOutboxEntity>();
 
         exactPostOutbox.ToTable("ExactPostOutbox");

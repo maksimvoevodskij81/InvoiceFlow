@@ -86,7 +86,14 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 SupplierMatchedBy = supplierMatchResult.MatchedBy,
                 InternalSupplierId = supplierMatchResult.InternalSupplierId,
                 ExactSupplierId = supplierMatchResult.ExactSupplierId,
-                SupplierMatchMessage = supplierMatchResult.Message
+                SupplierMatchMessage = supplierMatchResult.Message,
+                ExactPostingStatus = supplierMatchResult.IsMatched &&
+                     !supplierMatchResult.RequiresReview &&
+                     !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId)
+                     ? ExactPostingStatuses.Queued : null,
+                ExactDocumentId = null,
+                PostedToExactAtUtc = null,
+                ExactPostingError = null
             };
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
