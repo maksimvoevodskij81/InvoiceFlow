@@ -275,8 +275,8 @@ public sealed class InvoiceUploadServiceTests
             var response = await service.UploadAsync(file, CancellationToken.None);
 
             Assert.Equal(InvoiceStatuses.Parsed, response.Status);
-            Assert.Equal(1, outboxWriter.CallsCount);
-            Assert.Equal(response.InvoiceId, outboxWriter.LastInvoiceId);
+            Assert.Equal(1, outboxWriter.EnqueueCallsCount);
+            Assert.Equal(response.InvoiceId, outboxWriter.LastEnqueuedInvoiceId);
         }
         finally
         {

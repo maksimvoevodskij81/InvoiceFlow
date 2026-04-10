@@ -38,4 +38,41 @@ public sealed class EfExactPostOutboxWriter : IExactPostOutboxWriter
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task RequeueAsync(string invoiceId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
+
+        var existingMessage = await _dbContext.ExactPostOutbox
+            .SingleOrDefaultAsync(x => x.InvoiceId == invoiceId, cancellationToken);
+
+        if (existingMessage is null)
+        {
+            var message = new ExactPostOutboxEntity
+            {
+                Id = Guid.NewGuid(),
+                InvoiceId = invoiceId,
+                Status = ExactPostOutboxStatuses.Pending,
+                AttemptCount = 0,
+                CreatedAtUtc = DateTime.UtcNow,
+                LastAttemptAtUtc = null,
+                NextAttemptAtUtc = null,
+                ExternalDocumentId = null,
+                LastError = null
+            };
+
+            _dbContext.ExactPostOutbox.Add(message);
+        }
+        else
+        {
+            existingMessage.Status = ExactPostOutboxStatuses.Pending;
+            existingMessage.AttemptCount = 0;
+            existingMessage.LastAttemptAtUtc = null;
+            existingMessage.NextAttemptAtUtc = null;
+            existingMessage.ExternalDocumentId = null;
+            existingMessage.LastError = null;
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }
