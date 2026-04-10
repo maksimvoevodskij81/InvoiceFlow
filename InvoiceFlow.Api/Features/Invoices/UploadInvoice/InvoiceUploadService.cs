@@ -1,7 +1,7 @@
-﻿using System.Security.Cryptography;
-using InvoiceFlow.Api.Contracts;
+﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
-using Microsoft.AspNetCore.Http;
+using System.Security.Cryptography;
 
 namespace InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 
@@ -11,17 +11,19 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     private readonly ISupplierMatcher _supplierMatcher;
     private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
-
+    private readonly IExactPostOutboxWriter _exactPostOutboxWriter;
     public InvoiceUploadService(
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
         IUploadedInvoiceFileStore uploadedInvoiceFileStore,
-        IUploadedInvoiceStore uploadedInvoiceStore)
+        IUploadedInvoiceStore uploadedInvoiceStore,
+        IExactPostOutboxWriter exactPostOutboxWriter)
     {
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
         _uploadedInvoiceFileStore = uploadedInvoiceFileStore;
         _uploadedInvoiceStore = uploadedInvoiceStore;
+        _exactPostOutboxWriter = exactPostOutboxWriter;
     }
 
     public async Task<UploadInvoiceAcceptedResponse> UploadAsync(
@@ -88,6 +90,14 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             };
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
+
+            if (parsedRecord.IsSupplierMatched &&
+                 !parsedRecord.RequiresSupplierReview &&
+                 !string.IsNullOrWhiteSpace(parsedRecord.ExactSupplierId)
+                 )
+            {
+                await _exactPostOutboxWriter.EnqueueAsync(parsedRecord.InvoiceId, cancellationToken);
+            }
 
             return new UploadInvoiceAcceptedResponse
             {

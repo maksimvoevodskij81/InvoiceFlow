@@ -1,6 +1,9 @@
+using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure;
+using InvoiceFlow.Api.Infrastructure.Background;
+using InvoiceFlow.Api.Infrastructure.Exact;
 using InvoiceFlow.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +21,9 @@ builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
+builder.Services.AddScoped<IExactPostOutboxWriter, EfExactPostOutboxWriter>();
+builder.Services.AddScoped<IExactInvoicePostingService, FakeExactInvoicePostingService>();
+builder.Services.AddHostedService<ExactPostOutboxWorker>();
 
 builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>
 {

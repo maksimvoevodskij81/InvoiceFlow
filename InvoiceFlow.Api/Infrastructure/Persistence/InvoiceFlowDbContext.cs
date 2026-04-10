@@ -10,7 +10,7 @@ public sealed class InvoiceFlowDbContext : DbContext
     }
 
     public DbSet<UploadedInvoiceEntity> UploadedInvoices => Set<UploadedInvoiceEntity>();
-
+    public DbSet<ExactPostOutboxEntity> ExactPostOutbox => Set<ExactPostOutboxEntity>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -61,6 +61,27 @@ public sealed class InvoiceFlowDbContext : DbContext
             .HasMaxLength(512);
 
         uploadedInvoice.HasIndex(x => x.FileHash)
+            .IsUnique();
+
+        var exactPostOutbox = modelBuilder.Entity<ExactPostOutboxEntity>();
+
+        exactPostOutbox.ToTable("ExactPostOutbox");
+
+        exactPostOutbox.HasKey(x => x.Id);
+
+        exactPostOutbox.Property(x => x.InvoiceId)
+            .HasMaxLength(64);
+
+        exactPostOutbox.Property(x => x.Status)
+            .HasMaxLength(32);
+
+        exactPostOutbox.Property(x => x.ExternalDocumentId)
+            .HasMaxLength(128);
+
+        exactPostOutbox.Property(x => x.LastError)
+            .HasMaxLength(1024);
+
+        exactPostOutbox.HasIndex(x => x.InvoiceId)
             .IsUnique();
     }
 }

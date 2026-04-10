@@ -23,10 +23,11 @@ public sealed class InvoiceUploadServiceTests
         {
             var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
             var service = new InvoiceUploadService(
-                new FakeInvoiceParser(),
-                new FakeSupplierMatcher(),
-                new LocalUploadedInvoiceFileStore(),
-                uploadedInvoiceStore);
+                 new FakeInvoiceParser(),
+                 new FakeSupplierMatcher(),
+                 new LocalUploadedInvoiceFileStore(),
+                 uploadedInvoiceStore,
+                 new FakeExactPostOutboxWriter());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -89,10 +90,11 @@ public sealed class InvoiceUploadServiceTests
             var parser = new CountingInvoiceParser();
             var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
             var service = new InvoiceUploadService(
-                parser,
-                new FakeSupplierMatcher(),
-                new LocalUploadedInvoiceFileStore(),
-                uploadedInvoiceStore);
+                 parser,
+                 new FakeSupplierMatcher(),
+                 new LocalUploadedInvoiceFileStore(),
+                 uploadedInvoiceStore,
+                 new FakeExactPostOutboxWriter());
 
             var firstFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
             var secondFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice-copy.pdf");
@@ -131,11 +133,14 @@ public sealed class InvoiceUploadServiceTests
         try
         {
             var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var parser = new CountingInvoiceParser();
+
             var service = new InvoiceUploadService(
-                new FakeInvoiceParser(),
+                parser,
                 new ReviewRequiredSupplierMatcher(),
                 new LocalUploadedInvoiceFileStore(),
-                uploadedInvoiceStore);
+                uploadedInvoiceStore,
+                new FakeExactPostOutboxWriter());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -190,7 +195,8 @@ public sealed class InvoiceUploadServiceTests
                 new ThrowingInvoiceParser(),
                 new FakeSupplierMatcher(),
                 new LocalUploadedInvoiceFileStore(),
-                uploadedInvoiceStore);
+                uploadedInvoiceStore,
+                new FakeExactPostOutboxWriter());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -227,6 +233,50 @@ public sealed class InvoiceUploadServiceTests
             Assert.Null(savedRecord.InternalSupplierId);
             Assert.Null(savedRecord.ExactSupplierId);
             Assert.Null(savedRecord.SupplierMatchMessage);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldEnqueueExactOutbox_WhenSupplierIsMatchedAndExactSupplierIdExists()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var outboxWriter = new FakeExactPostOutboxWriter();
+            var service = new InvoiceUploadService(
+                new FakeInvoiceParser(),
+                new FakeSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                outboxWriter);
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+            Assert.Equal(1, outboxWriter.CallsCount);
+            Assert.Equal(response.InvoiceId, outboxWriter.LastInvoiceId);
         }
         finally
         {
