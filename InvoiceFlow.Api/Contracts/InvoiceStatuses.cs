@@ -7,4 +7,6 @@ public static class InvoiceStatuses
     public const string Processing = "Processing";
     public const string Failed = "Failed";
     public const string Duplicate = "Duplicate";
+    public const string Invalid = "Invalid";
+    public const string ReadyToPost = "ReadyToPost";
 }

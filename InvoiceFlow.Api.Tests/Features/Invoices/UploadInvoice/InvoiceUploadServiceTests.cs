@@ -1,4 +1,5 @@
 ﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure;
@@ -11,7 +12,7 @@ namespace InvoiceFlow.Api.Tests.Features.Invoices.UploadInvoice;
 public sealed class InvoiceUploadServiceTests
 {
     [Fact]
-    public async Task UploadAsync_ShouldSaveRecord_ParseMatchAndReturnParsed_WhenSupplierIsMatched()
+    public async Task UploadAsync_ShouldSaveRecord_AndReturnReadyToPost_WhenSupplierIsMatchedWithoutReview()
     {
         var originalCurrentDirectory = Directory.GetCurrentDirectory();
         var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -27,7 +28,9 @@ public sealed class InvoiceUploadServiceTests
                  new FakeSupplierMatcher(),
                  new LocalUploadedInvoiceFileStore(),
                  uploadedInvoiceStore,
-                 new FakeExactPostOutboxWriter());
+                 new FakeExactPostOutboxWriter(),
+                 new InvoiceParseResultValidator());
+
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -39,8 +42,8 @@ public sealed class InvoiceUploadServiceTests
             var response = await service.UploadAsync(file, CancellationToken.None);
 
             Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
-            Assert.Equal(InvoiceStatuses.Parsed, response.Status);
-            Assert.Equal("Invoice parsed successfully.", response.Message);
+            Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
+            Assert.Equal(InvoiceMessages.ReadyToPost, response.Message);
 
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
@@ -51,8 +54,8 @@ public sealed class InvoiceUploadServiceTests
             Assert.Contains("UploadedInvoices", savedRecord.StoredFilePath, StringComparison.OrdinalIgnoreCase);
             Assert.True(File.Exists(savedRecord.StoredFilePath));
             Assert.False(string.IsNullOrWhiteSpace(savedRecord.FileHash));
-            Assert.Equal(InvoiceStatuses.Parsed, savedRecord.Status);
-            Assert.Equal("Invoice parsed successfully.", savedRecord.Message);
+            Assert.Equal(InvoiceStatuses.ReadyToPost, savedRecord.Status);
+            Assert.Equal(InvoiceMessages.ReadyToPost, savedRecord.Message);
             Assert.Equal("Demo Supplier", savedRecord.SupplierName);
             Assert.Equal("INV-001", savedRecord.InvoiceNumber);
             Assert.Equal(new DateOnly(2026, 4, 1), savedRecord.InvoiceDate);
@@ -94,7 +97,9 @@ public sealed class InvoiceUploadServiceTests
                  new FakeSupplierMatcher(),
                  new LocalUploadedInvoiceFileStore(),
                  uploadedInvoiceStore,
-                 new FakeExactPostOutboxWriter());
+                 new FakeExactPostOutboxWriter(),
+                 new InvoiceParseResultValidator());
+
 
             var firstFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
             var secondFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice-copy.pdf");
@@ -103,11 +108,11 @@ public sealed class InvoiceUploadServiceTests
             var duplicateResponse = await service.UploadAsync(secondFile, CancellationToken.None);
 
             Assert.False(string.IsNullOrWhiteSpace(firstResponse.InvoiceId));
-            Assert.Equal(InvoiceStatuses.Parsed, firstResponse.Status);
+            Assert.Equal(InvoiceStatuses.ReadyToPost, firstResponse.Status);
 
             Assert.Equal(firstResponse.InvoiceId, duplicateResponse.InvoiceId);
             Assert.Equal(InvoiceStatuses.Duplicate, duplicateResponse.Status);
-            Assert.Equal("Duplicate invoice upload detected.", duplicateResponse.Message);
+            Assert.Equal(InvoiceMessages.DuplicateUploadDetected, duplicateResponse.Message);
             Assert.Equal(1, parser.CallCount);
         }
         finally
@@ -140,7 +145,8 @@ public sealed class InvoiceUploadServiceTests
                 new ReviewRequiredSupplierMatcher(),
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore,
-                new FakeExactPostOutboxWriter());
+                new FakeExactPostOutboxWriter(),
+                new InvoiceParseResultValidator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -153,7 +159,7 @@ public sealed class InvoiceUploadServiceTests
 
             Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
             Assert.Equal(InvoiceStatuses.Parsed, response.Status);
-            Assert.Equal("Invoice parsed successfully.", response.Message);
+            Assert.Contains("requires supplier review", response.Message);
 
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
@@ -196,7 +202,8 @@ public sealed class InvoiceUploadServiceTests
                 new FakeSupplierMatcher(),
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore,
-                new FakeExactPostOutboxWriter());
+                new FakeExactPostOutboxWriter(),
+                new InvoiceParseResultValidator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -209,7 +216,7 @@ public sealed class InvoiceUploadServiceTests
 
             Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
             Assert.Equal(InvoiceStatuses.Failed, response.Status);
-            Assert.Equal("Invoice parsing failed.", response.Message);
+            Assert.Equal(InvoiceMessages.ParsingFailed, response.Message);
 
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
@@ -221,7 +228,7 @@ public sealed class InvoiceUploadServiceTests
             Assert.True(File.Exists(savedRecord.StoredFilePath));
             Assert.False(string.IsNullOrWhiteSpace(savedRecord.FileHash));
             Assert.Equal(InvoiceStatuses.Failed, savedRecord.Status);
-            Assert.Equal("Invoice parsing failed.", savedRecord.Message);
+            Assert.Equal(InvoiceMessages.ParsingFailed, savedRecord.Message);
             Assert.Null(savedRecord.SupplierName);
             Assert.Null(savedRecord.InvoiceNumber);
             Assert.Null(savedRecord.InvoiceDate);
@@ -263,7 +270,8 @@ public sealed class InvoiceUploadServiceTests
                 new FakeSupplierMatcher(),
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore,
-                outboxWriter);
+                outboxWriter,
+                new InvoiceParseResultValidator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -274,7 +282,7 @@ public sealed class InvoiceUploadServiceTests
 
             var response = await service.UploadAsync(file, CancellationToken.None);
 
-            Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+            Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
             Assert.Equal(1, outboxWriter.EnqueueCallsCount);
             Assert.Equal(response.InvoiceId, outboxWriter.LastEnqueuedInvoiceId);
         }

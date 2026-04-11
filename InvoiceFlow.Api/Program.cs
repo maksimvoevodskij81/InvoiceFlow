@@ -24,6 +24,7 @@ builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
 builder.Services.AddScoped<IExactPostOutboxWriter, EfExactPostOutboxWriter>();
 builder.Services.AddScoped<IExactInvoicePostingService, FakeExactInvoicePostingService>();
 builder.Services.AddHostedService<ExactPostOutboxWorker>();
+builder.Services.AddScoped<InvoiceParseResultValidator>();
 
 builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>
 {

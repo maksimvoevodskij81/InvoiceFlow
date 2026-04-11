@@ -12,18 +12,21 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     private readonly IUploadedInvoiceFileStore _uploadedInvoiceFileStore;
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
     private readonly IExactPostOutboxWriter _exactPostOutboxWriter;
+    private readonly InvoiceParseResultValidator _invoiceParseResultValidator;
     public InvoiceUploadService(
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
         IUploadedInvoiceFileStore uploadedInvoiceFileStore,
         IUploadedInvoiceStore uploadedInvoiceStore,
-        IExactPostOutboxWriter exactPostOutboxWriter)
+        IExactPostOutboxWriter exactPostOutboxWriter,
+        InvoiceParseResultValidator invoiceParseResultValidator)
     {
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
         _uploadedInvoiceFileStore = uploadedInvoiceFileStore;
         _uploadedInvoiceStore = uploadedInvoiceStore;
         _exactPostOutboxWriter = exactPostOutboxWriter;
+        _invoiceParseResultValidator = invoiceParseResultValidator;
     }
 
     public async Task<UploadInvoiceAcceptedResponse> UploadAsync(
@@ -41,7 +44,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             {
                 InvoiceId = existingRecord.InvoiceId,
                 Status = InvoiceStatuses.Duplicate,
-                Message = "Duplicate invoice upload detected."
+                Message = InvoiceMessages.DuplicateUploadDetected
             };
         }
 
@@ -54,7 +57,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             OriginalFileName = file.FileName,
             StoredFilePath = storedFilePath,
             Status = InvoiceStatuses.Processing,
-            Message = "Invoice upload received.",
+            Message = InvoiceMessages.UploadReceived,
             CreatedAtUtc = DateTime.UtcNow,
             FileHash = fileHash
         };
@@ -65,15 +68,65 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         {
             var uploadedFile = CreateUploadedFolderInvoiceFile(file, storedFilePath);
             var parseResult = await _invoiceParser.ParseAsync(uploadedFile, cancellationToken);
-            var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult);
+
+            List<string> missingFields = _invoiceParseResultValidator.Validate(parseResult);
+
+            if (missingFields.Count > 0)
+            {
+                var invalidRecord = new UploadedInvoiceRecord
+                {
+                    InvoiceId = record.InvoiceId,
+                    OriginalFileName = record.OriginalFileName,
+                    StoredFilePath = record.StoredFilePath,
+                    Status = InvoiceStatuses.Invalid,
+                    Message = InvoiceMessages.MissingRequiredFields(missingFields),
+                    CreatedAtUtc = record.CreatedAtUtc,
+                    FileHash = record.FileHash,
+                    SupplierName = parseResult.SupplierName,
+                    InvoiceNumber = parseResult.InvoiceNumber,
+                    InvoiceDate = parseResult.InvoiceDate,
+                    TotalAmount = parseResult.TotalAmount,
+                    Currency = parseResult.Currency,
+                    IsSupplierMatched = false,
+                    RequiresSupplierReview = false,
+                    SupplierMatchedBy = null,
+                    InternalSupplierId = null,
+                    ExactSupplierId = null,
+                    SupplierMatchMessage = null,
+                    ExactPostingStatus = null,
+                    ExactDocumentId = null,
+                    PostedToExactAtUtc = null,
+                    ExactPostingError = null
+                };
+
+                await _uploadedInvoiceStore.SaveAsync(invalidRecord, cancellationToken);
+
+                return new UploadInvoiceAcceptedResponse
+                {
+                    InvoiceId = invoiceId,
+                    Status = InvoiceStatuses.Invalid,
+                    Message = invalidRecord.Message
+                };
+            }
+
+            var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult, cancellationToken);
+
+            var isReadyToPost =
+                supplierMatchResult.IsMatched &&
+                !supplierMatchResult.RequiresReview &&
+                !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
 
             var parsedRecord = new UploadedInvoiceRecord
             {
                 InvoiceId = record.InvoiceId,
                 OriginalFileName = record.OriginalFileName,
                 StoredFilePath = record.StoredFilePath,
-                Status = InvoiceStatuses.Parsed,
-                Message = "Invoice parsed successfully.",
+                Status = isReadyToPost
+                    ? InvoiceStatuses.ReadyToPost
+                    : InvoiceStatuses.Parsed,
+                Message = isReadyToPost
+                    ? InvoiceMessages.ReadyToPost
+                    : InvoiceMessages.ParsedButRequiresSupplierReview,
                 CreatedAtUtc = record.CreatedAtUtc,
                 FileHash = record.FileHash,
                 SupplierName = parseResult.SupplierName,
@@ -87,10 +140,9 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 InternalSupplierId = supplierMatchResult.InternalSupplierId,
                 ExactSupplierId = supplierMatchResult.ExactSupplierId,
                 SupplierMatchMessage = supplierMatchResult.Message,
-                ExactPostingStatus = supplierMatchResult.IsMatched &&
-                     !supplierMatchResult.RequiresReview &&
-                     !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId)
-                     ? ExactPostingStatuses.Queued : null,
+                ExactPostingStatus = isReadyToPost
+                    ? ExactPostingStatuses.Queued
+                    : null,
                 ExactDocumentId = null,
                 PostedToExactAtUtc = null,
                 ExactPostingError = null
@@ -98,10 +150,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
 
-            if (parsedRecord.IsSupplierMatched &&
-                 !parsedRecord.RequiresSupplierReview &&
-                 !string.IsNullOrWhiteSpace(parsedRecord.ExactSupplierId)
-                 )
+            if (isReadyToPost)
             {
                 await _exactPostOutboxWriter.EnqueueAsync(parsedRecord.InvoiceId, cancellationToken);
             }
@@ -109,8 +158,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             return new UploadInvoiceAcceptedResponse
             {
                 InvoiceId = invoiceId,
-                Status = InvoiceStatuses.Parsed,
-                Message = "Invoice parsed successfully."
+                Status = parsedRecord.Status,
+                Message = parsedRecord.Message
             };
         }
         catch (Exception)
@@ -118,14 +167,14 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             await _uploadedInvoiceStore.UpdateStatusAsync(
                 invoiceId,
                 InvoiceStatuses.Failed,
-                "Invoice parsing failed.",
+                InvoiceMessages.ParsingFailed,
                 cancellationToken);
 
             return new UploadInvoiceAcceptedResponse
             {
                 InvoiceId = invoiceId,
                 Status = InvoiceStatuses.Failed,
-                Message = "Invoice parsing failed."
+                Message =InvoiceMessages.ParsingFailed
             };
         }
     }
