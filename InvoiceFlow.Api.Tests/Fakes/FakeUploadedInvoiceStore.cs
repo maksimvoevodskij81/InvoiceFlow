@@ -1,4 +1,6 @@
-﻿using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices;
+using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 
 namespace InvoiceFlow.Api.Tests.Fakes;
 
@@ -42,5 +44,34 @@ public sealed class FakeUploadedInvoiceStore : IUploadedInvoiceStore
         }
 
         return Task.CompletedTask;
+    }
+
+    public async Task UpdateSupplierCreationResultAsync(
+   string invoiceId,
+   string exactSupplierId,
+   CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(exactSupplierId);
+
+        var existingRecord = await this.GetByIdAsync(invoiceId, cancellationToken);
+
+        if (existingRecord is null)
+        {
+            throw new InvalidOperationException($"Uploaded invoice with id '{invoiceId}' was not found.");
+        }
+
+        existingRecord.IsSupplierMatched = true;
+        existingRecord.RequiresSupplierReview = false;
+        existingRecord.CanCreateSupplier = false;
+
+        existingRecord.ExactSupplierId = exactSupplierId;
+        existingRecord.SupplierMatchedBy = SupplierMatchSources.CreatedInExact;
+        existingRecord.SupplierMatchMessage = InvoiceMessages.SupplierCreatedInExactSuccessfully;
+
+        existingRecord.Status = InvoiceStatuses.ReadyToPost;
+        existingRecord.Message = InvoiceMessages.ReadyToPost;
+
+        await this.SaveAsync(existingRecord, cancellationToken);
     }
 }

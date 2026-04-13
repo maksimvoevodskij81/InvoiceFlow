@@ -2,8 +2,8 @@
 
 public sealed class FakeSupplierCreator : ISupplierCreator
 {
-    public Task<string> CreateAsync(string invoiceId, CancellationToken cancellationToken = default)
+    public Task<string> CreateAsync(SupplierCreateRequest request, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult($"exact-created-{invoiceId}");
+        return Task.FromResult($"exact-{request.Name}");
     }
 }

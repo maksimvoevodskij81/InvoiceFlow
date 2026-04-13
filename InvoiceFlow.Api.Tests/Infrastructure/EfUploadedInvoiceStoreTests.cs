@@ -94,7 +94,7 @@ public sealed class EfUploadedInvoiceStoreTests
             Currency = "EUR",
             IsSupplierMatched = true,
             RequiresSupplierReview = false,
-            SupplierMatchedBy = SupplierMatchSources.BankAccount
+            SupplierMatchedBy = SupplierMatchSources.BankAccount,
             InternalSupplierId = "internal-supplier-001",
             ExactSupplierId = "exact-supplier-001",
             SupplierMatchMessage = "Supplier matched successfully."

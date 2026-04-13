@@ -1,11 +1,12 @@
 ﻿using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
 using InvoiceFlow.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
+namespace InvoiceFlow.Api.Infrastructure.Background;
 
-public sealed class SupplierCreateWorker : BackgroundService
+public class SupplierCreateWorker : BackgroundService
 {
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<SupplierCreateWorker> _logger;
@@ -24,7 +25,7 @@ public sealed class SupplierCreateWorker : BackgroundService
         {
             try
             {
-                await ProcessPendingMessagesAsync(stoppingToken);
+                await ProcessPendingMessagesPublicAsync(stoppingToken);
             }
             catch (Exception exception)
             {
@@ -35,7 +36,7 @@ public sealed class SupplierCreateWorker : BackgroundService
         }
     }
 
-    private async Task ProcessPendingMessagesAsync(CancellationToken cancellationToken)
+    protected internal async Task ProcessPendingMessagesPublicAsync(CancellationToken cancellationToken)
     {
         using var scope = _serviceScopeFactory.CreateScope();
 
@@ -60,7 +61,17 @@ public sealed class SupplierCreateWorker : BackgroundService
 
                 await dbContext.SaveChangesAsync(cancellationToken);
 
-                string exactSupplierId = await supplierCreator.CreateAsync(message.InvoiceId, cancellationToken);
+                var invoice = await uploadedInvoiceStore.GetByIdAsync(message.InvoiceId, cancellationToken);
+
+                var request = new SupplierCreateRequest
+                {
+                    Name = invoice!.SupplierName!,
+                    AddressLine = invoice.SupplierAddressLine!,
+                    Postcode = invoice.SupplierPostcode!,
+                    City = invoice.SupplierCity!,
+                    Country = invoice.SupplierCountry!
+                };
+                string exactSupplierId = await supplierCreator.CreateAsync(request, cancellationToken);
 
                 message.Status = SupplierCreateOutboxStatuses.Succeeded;
                 message.CreatedExactSupplierId = exactSupplierId;

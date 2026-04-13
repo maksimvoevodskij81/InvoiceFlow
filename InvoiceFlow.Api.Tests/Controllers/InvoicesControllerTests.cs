@@ -358,8 +358,8 @@ public sealed class InvoicesControllerTests
             InvoiceId = "details-123",
             OriginalFileName = "invoice.pdf",
             StoredFilePath = Path.Combine("temp", "invoice.pdf"),
-            Status = InvoiceStatuses.Parsed,
-            Message = InvoiceMessages.ParsedButRequiresSupplierReview,
+            Status = InvoiceStatuses.ReadyToPost,
+            Message = InvoiceMessages.ReadyToPost,
             CreatedAtUtc = new DateTime(2026, 4, 8, 10, 30, 0, DateTimeKind.Utc),
             FileHash = "test-hash-details-123",
             SupplierName = "Demo Supplier",
@@ -391,8 +391,8 @@ public sealed class InvoicesControllerTests
         Assert.Equal("details-123", response.InvoiceId);
         Assert.Equal("invoice.pdf", response.OriginalFileName);
         Assert.Equal(new DateTime(2026, 4, 8, 10, 30, 0, DateTimeKind.Utc), response.CreatedAtUtc);
-        Assert.Equal(InvoiceStatuses.Parsed, response.Status);
-        Assert.Equal("Invoice parsed successfully.", response.Message);
+        Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
+        Assert.Equal(InvoiceMessages.ReadyToPost, response.Message);
         Assert.Equal("Demo Supplier", response.SupplierName);
         Assert.Equal("INV-001", response.InvoiceNumber);
         Assert.Equal(new DateOnly(2026, 4, 1), response.InvoiceDate);

@@ -28,7 +28,7 @@ builder.Services.AddHostedService<ExactPostOutboxWorker>();
 builder.Services.AddScoped<InvoiceParseResultValidator>();
 builder.Services.AddScoped<SupplierCreateValidator>();
 builder.Services.AddScoped<ISupplierCreateOutboxWriter, EfSupplierCreateOutboxWriter>();
-builder.Services.AddScoped<ISupplierCreator, FakeSupplierCreator>();
+builder.Services.AddScoped<ISupplierCreator, ExactSupplierCreator>();
 builder.Services.AddHostedService<SupplierCreateWorker>();
 
 builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>

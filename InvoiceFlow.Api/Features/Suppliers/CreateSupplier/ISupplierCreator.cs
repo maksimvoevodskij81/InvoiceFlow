@@ -2,5 +2,5 @@
 
 public interface ISupplierCreator
 {
-    Task<string> CreateAsync(string invoiceId, CancellationToken cancellationToken = default);
+    Task<string> CreateAsync(SupplierCreateRequest request, CancellationToken cancellationToken = default);
 }
