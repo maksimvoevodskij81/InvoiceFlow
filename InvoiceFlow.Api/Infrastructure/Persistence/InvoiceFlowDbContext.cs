@@ -1,4 +1,5 @@
 ﻿using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
+using InvoiceFlow.Api.Features.Suppliers.Idempotency;
 using Microsoft.EntityFrameworkCore;
 
 namespace InvoiceFlow.Api.Infrastructure.Persistence;
@@ -13,6 +14,8 @@ public sealed class InvoiceFlowDbContext : DbContext
     public DbSet<UploadedInvoiceEntity> UploadedInvoices => Set<UploadedInvoiceEntity>();
     public DbSet<ExactPostOutboxEntity> ExactPostOutbox => Set<ExactPostOutboxEntity>();
     public DbSet<SupplierCreateOutboxEntity> SupplierCreateOutbox => Set<SupplierCreateOutboxEntity>();
+    public DbSet<SupplierMappingEntity> SupplierMappings => Set<SupplierMappingEntity>();
+    public DbSet<BankAccountMappingEntity> BankAccountMappings => Set<BankAccountMappingEntity>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -114,6 +117,43 @@ public sealed class InvoiceFlowDbContext : DbContext
                 .IsRequired();
 
             entity.HasIndex(x => x.InvoiceId)
+                .IsUnique();
+        });
+        modelBuilder.Entity<SupplierMappingEntity>(entity =>
+        {
+            entity.ToTable("SupplierMappings");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Fingerprint)
+                .IsRequired();
+
+            entity.Property(x => x.ExactSupplierId)
+                .IsRequired();
+
+            entity.Property(x => x.CreatedAtUtc)
+                .IsRequired();
+
+            entity.HasIndex(x => x.Fingerprint)
+                .IsUnique();
+        });
+
+        modelBuilder.Entity<BankAccountMappingEntity>(entity =>
+        {
+            entity.ToTable("BankAccountMappings");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Fingerprint)
+                .IsRequired();
+
+            entity.Property(x => x.ExactSupplierId)
+                .IsRequired();
+
+            entity.Property(x => x.CreatedAtUtc)
+                .IsRequired();
+
+            entity.HasIndex(x => x.Fingerprint)
                 .IsUnique();
         });
     }

@@ -2,6 +2,7 @@ using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
+using InvoiceFlow.Api.Features.Suppliers.Idempotency;
 using InvoiceFlow.Api.Infrastructure;
 using InvoiceFlow.Api.Infrastructure.Background;
 using InvoiceFlow.Api.Infrastructure.Exact;
@@ -30,6 +31,10 @@ builder.Services.AddScoped<SupplierCreateValidator>();
 builder.Services.AddScoped<ISupplierCreateOutboxWriter, EfSupplierCreateOutboxWriter>();
 builder.Services.AddScoped<ISupplierCreator, ExactSupplierCreator>();
 builder.Services.AddHostedService<SupplierCreateWorker>();
+builder.Services.AddScoped<SupplierFingerprintBuilder>();
+builder.Services.AddScoped<BankAccountFingerprintBuilder>();
+builder.Services.AddScoped<ISupplierMappingStore, EfSupplierMappingStore>();
+builder.Services.AddScoped<IBankAccountMappingStore, EfBankAccountMappingStore>();
 
 builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>
 {

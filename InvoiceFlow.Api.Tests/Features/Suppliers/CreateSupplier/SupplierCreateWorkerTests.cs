@@ -3,6 +3,7 @@ using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
+using InvoiceFlow.Api.Features.Suppliers.Idempotency;
 using InvoiceFlow.Api.Infrastructure.Background;
 using InvoiceFlow.Api.Infrastructure.Persistence;
 using InvoiceFlow.Api.Tests.Fakes;
@@ -66,6 +67,10 @@ public sealed class SupplierCreateWorkerTests
             .AddSingleton<IUploadedInvoiceStore>(uploadedInvoiceStore)
             .AddSingleton<IExactPostOutboxWriter>(exactPostOutboxWriter)
             .AddSingleton<ISupplierCreator>(supplierCreator)
+            .AddSingleton<ISupplierMappingStore, FakeSupplierMappingStore>()
+            .AddSingleton<IBankAccountMappingStore, FakeBankAccountMappingStore>()
+            .AddSingleton<SupplierFingerprintBuilder>()
+            .AddSingleton<BankAccountFingerprintBuilder>()
             .BuildServiceProvider();
 
         var worker = new TestableSupplierCreateWorker(
@@ -144,6 +149,10 @@ public sealed class SupplierCreateWorkerTests
             .AddSingleton<IUploadedInvoiceStore>(uploadedInvoiceStore)
             .AddSingleton<IExactPostOutboxWriter>(exactPostOutboxWriter)
             .AddSingleton<ISupplierCreator>(supplierCreator)
+            .AddSingleton<ISupplierMappingStore, FakeSupplierMappingStore>()
+            .AddSingleton<IBankAccountMappingStore, FakeBankAccountMappingStore>()
+            .AddSingleton<SupplierFingerprintBuilder>()
+            .AddSingleton<BankAccountFingerprintBuilder>()
             .BuildServiceProvider();
 
         var worker = new TestableSupplierCreateWorker(
@@ -192,6 +201,10 @@ public sealed class SupplierCreateWorkerTests
             .AddSingleton<IUploadedInvoiceStore>(uploadedInvoiceStore)
             .AddSingleton<IExactPostOutboxWriter>(exactPostOutboxWriter)
             .AddSingleton<ISupplierCreator>(supplierCreator)
+            .AddSingleton<ISupplierMappingStore, FakeSupplierMappingStore>()
+            .AddSingleton<IBankAccountMappingStore, FakeBankAccountMappingStore>()
+            .AddSingleton<SupplierFingerprintBuilder>()
+            .AddSingleton<BankAccountFingerprintBuilder>()
             .BuildServiceProvider();
 
         var worker = new TestableSupplierCreateWorker(
@@ -257,7 +270,7 @@ file sealed class FakeSupplierCreator : ISupplierCreator
 {
     public string ExactSupplierId { get; set; } = string.Empty;
 
-    public Task<string> CreateAsync(string invoiceId, CancellationToken cancellationToken = default)
+    public Task<string> CreateAsync(SupplierCreateRequest request, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(ExactSupplierId);
     }
@@ -272,8 +285,49 @@ file sealed class ThrowingSupplierCreator : ISupplierCreator
         _message = message;
     }
 
-    public Task<string> CreateAsync(string invoiceId, CancellationToken cancellationToken = default)
+    public Task<string> CreateAsync(SupplierCreateRequest request, CancellationToken cancellationToken = default)
     {
         throw new InvalidOperationException(_message);
     }
 }
+
+file sealed class FakeSupplierMappingStore : ISupplierMappingStore
+{
+    private readonly Dictionary<string, string> _mappings = new(StringComparer.Ordinal);
+
+    public Task<string?> FindExactSupplierIdAsync(string fingerprint, CancellationToken cancellationToken = default)
+    {
+        _mappings.TryGetValue(fingerprint, out string? exactSupplierId);
+        return Task.FromResult(exactSupplierId);
+    }
+
+    public Task SaveAsync(
+        string fingerprint,
+        string exactSupplierId,
+        CancellationToken cancellationToken = default)
+    {
+        _mappings.TryAdd(fingerprint, exactSupplierId);
+        return Task.CompletedTask;
+    }
+}
+
+file sealed class FakeBankAccountMappingStore : IBankAccountMappingStore
+{
+    private readonly Dictionary<string, string> _mappings = new(StringComparer.Ordinal);
+
+    public Task<string?> FindExactSupplierIdAsync(string fingerprint, CancellationToken cancellationToken = default)
+    {
+        _mappings.TryGetValue(fingerprint, out string? exactSupplierId);
+        return Task.FromResult(exactSupplierId);
+    }
+
+    public Task SaveAsync(
+        string fingerprint,
+        string exactSupplierId,
+        CancellationToken cancellationToken = default)
+    {
+        _mappings.TryAdd(fingerprint, exactSupplierId);
+        return Task.CompletedTask;
+    }
+}
+

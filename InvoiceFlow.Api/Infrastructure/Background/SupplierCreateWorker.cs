@@ -1,10 +1,12 @@
-﻿using InvoiceFlow.Api.Features.Exact;
+﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Exact;
+using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
-using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
+using InvoiceFlow.Api.Features.Suppliers.Idempotency;
 using InvoiceFlow.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace InvoiceFlow.Api.Infrastructure.Background;
+namespace InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
 
 public class SupplierCreateWorker : BackgroundService
 {
@@ -44,9 +46,15 @@ public class SupplierCreateWorker : BackgroundService
         var supplierCreator = scope.ServiceProvider.GetRequiredService<ISupplierCreator>();
         var exactPostOutboxWriter = scope.ServiceProvider.GetRequiredService<IExactPostOutboxWriter>();
         var uploadedInvoiceStore = scope.ServiceProvider.GetRequiredService<IUploadedInvoiceStore>();
+        var supplierMappingStore = scope.ServiceProvider.GetRequiredService<ISupplierMappingStore>();
+        var bankAccountMappingStore = scope.ServiceProvider.GetRequiredService<IBankAccountMappingStore>();
+        var supplierFingerprintBuilder = scope.ServiceProvider.GetRequiredService<SupplierFingerprintBuilder>();
+        var bankAccountFingerprintBuilder = scope.ServiceProvider.GetRequiredService<BankAccountFingerprintBuilder>();
 
         var pendingMessages = await dbContext.SupplierCreateOutbox
-            .Where(x => x.Status == SupplierCreateOutboxStatuses.Pending)
+            .Where(x =>
+                x.Status == SupplierCreateOutboxStatuses.Pending &&
+                (x.NextAttemptAtUtc == null || x.NextAttemptAtUtc <= DateTime.UtcNow))
             .OrderBy(x => x.CreatedAtUtc)
             .Take(10)
             .ToListAsync(cancellationToken);
@@ -63,19 +71,93 @@ public class SupplierCreateWorker : BackgroundService
 
                 var invoice = await uploadedInvoiceStore.GetByIdAsync(message.InvoiceId, cancellationToken);
 
-                var request = new SupplierCreateRequest
+                if (invoice is null)
                 {
-                    Name = invoice!.SupplierName!,
-                    AddressLine = invoice.SupplierAddressLine!,
-                    Postcode = invoice.SupplierPostcode!,
-                    City = invoice.SupplierCity!,
-                    Country = invoice.SupplierCountry!
+                    throw new InvalidOperationException($"Invoice '{message.InvoiceId}' was not found.");
+                }
+
+                var parseLikeModel = new InvoiceParseResult
+                {
+                    SupplierName = invoice.SupplierName ?? string.Empty,
+                    SupplierPostcode = invoice.SupplierPostcode,
+                    SupplierCountry = invoice.SupplierCountry,
+                    SupplierBankAccount = invoice.SupplierBankAccount
                 };
-                string exactSupplierId = await supplierCreator.CreateAsync(request, cancellationToken);
+
+                string supplierFingerprint = supplierFingerprintBuilder.Build(parseLikeModel);
+                string bankFingerprint = bankAccountFingerprintBuilder.Build(invoice.SupplierBankAccount);
+
+                string? supplierExactId = await supplierMappingStore.FindExactSupplierIdAsync(
+                    supplierFingerprint,
+                    cancellationToken);
+
+                string? bankExactId = string.IsNullOrWhiteSpace(bankFingerprint)
+                    ? null
+                    : await bankAccountMappingStore.FindExactSupplierIdAsync(
+                        bankFingerprint,
+                        cancellationToken);
+
+                if (!string.IsNullOrWhiteSpace(bankExactId) &&
+                    !string.IsNullOrWhiteSpace(supplierExactId) &&
+                    !string.Equals(bankExactId, supplierExactId, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException("Bank account is already linked to another supplier.");
+                }
+
+                string exactSupplierId;
+
+                if (!string.IsNullOrWhiteSpace(supplierExactId))
+                {
+                    exactSupplierId = supplierExactId;
+                }
+                else if (!string.IsNullOrWhiteSpace(bankExactId))
+                {
+                    exactSupplierId = bankExactId;
+                }
+                else
+                {
+                    var request = new SupplierCreateRequest
+                    {
+                        Name = invoice.SupplierName ?? string.Empty,
+                        AddressLine = invoice.SupplierAddressLine ?? string.Empty,
+                        Postcode = invoice.SupplierPostcode ?? string.Empty,
+                        City = invoice.SupplierCity ?? string.Empty,
+                        Country = invoice.SupplierCountry ?? string.Empty,
+                        BankAccount = invoice.SupplierBankAccount ?? string.Empty,
+                        BicCode = invoice.SupplierBicCode
+                    };
+
+                    exactSupplierId = await supplierCreator.CreateAsync(request, cancellationToken);
+
+                    await supplierMappingStore.SaveAsync(
+                        supplierFingerprint,
+                        exactSupplierId,
+                        cancellationToken);
+                }
+
+                if (!string.IsNullOrWhiteSpace(bankFingerprint))
+                {
+                    string? existingBankOwner = await bankAccountMappingStore.FindExactSupplierIdAsync(
+                        bankFingerprint,
+                        cancellationToken);
+
+                    if (string.IsNullOrWhiteSpace(existingBankOwner))
+                    {
+                        await bankAccountMappingStore.SaveAsync(
+                            bankFingerprint,
+                            exactSupplierId,
+                            cancellationToken);
+                    }
+                    else if (!string.Equals(existingBankOwner, exactSupplierId, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException("Bank account is already linked to another supplier.");
+                    }
+                }
 
                 message.Status = SupplierCreateOutboxStatuses.Succeeded;
                 message.CreatedExactSupplierId = exactSupplierId;
                 message.LastError = null;
+                message.NextAttemptAtUtc = null;
 
                 await dbContext.SaveChangesAsync(cancellationToken);
 
@@ -93,6 +175,11 @@ public class SupplierCreateWorker : BackgroundService
                 message.NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(5);
 
                 await dbContext.SaveChangesAsync(cancellationToken);
+
+                _logger.LogError(
+                    exception,
+                    "Failed to create supplier for invoice {InvoiceId}.",
+                    message.InvoiceId);
             }
         }
     }

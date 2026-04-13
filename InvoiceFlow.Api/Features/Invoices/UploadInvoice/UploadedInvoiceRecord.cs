@@ -50,4 +50,6 @@ public sealed class UploadedInvoiceRecord
     public string? SupplierPostcode { get; set; }
     public string? SupplierCity { get; set; }
     public string? SupplierCountry { get; set; }
+    public string? SupplierBankAccount { get; set; }
+    public string? SupplierBicCode { get; set; }
 }

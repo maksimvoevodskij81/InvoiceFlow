@@ -45,4 +45,10 @@ public sealed class UploadedInvoiceEntity
 
     public string? ExactPostingError { get; set; }
     public bool CanCreateSupplier { get; set; }
+    public string? SupplierAddressLine { get; set; }
+    public string? SupplierPostcode { get; set; }
+    public string? SupplierCity { get; set; }
+    public string? SupplierCountry { get; set; }
+    public string? SupplierBankAccount { get; set; }
+    public string? SupplierBicCode { get; set; }
 }
