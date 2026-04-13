@@ -13,13 +13,15 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
     private readonly IExactPostOutboxWriter _exactPostOutboxWriter;
     private readonly InvoiceParseResultValidator _invoiceParseResultValidator;
+    private readonly SupplierCreateValidator _supplierCreateValidator;
     public InvoiceUploadService(
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
         IUploadedInvoiceFileStore uploadedInvoiceFileStore,
         IUploadedInvoiceStore uploadedInvoiceStore,
         IExactPostOutboxWriter exactPostOutboxWriter,
-        InvoiceParseResultValidator invoiceParseResultValidator)
+        InvoiceParseResultValidator invoiceParseResultValidator,
+        SupplierCreateValidator supplierCreateValidator)
     {
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
@@ -27,6 +29,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         _uploadedInvoiceStore = uploadedInvoiceStore;
         _exactPostOutboxWriter = exactPostOutboxWriter;
         _invoiceParseResultValidator = invoiceParseResultValidator;
+        _supplierCreateValidator = supplierCreateValidator;
     }
 
     public async Task<UploadInvoiceAcceptedResponse> UploadAsync(
@@ -79,13 +82,18 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             }
 
             var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult, cancellationToken);
+            List<string> missingSupplierFields = _supplierCreateValidator.Validate(parseResult);
+
+            var canCreateSupplier =
+                !supplierMatchResult.IsMatched &&
+                missingSupplierFields.Count == 0;
 
             var isReadyToPost =
                 supplierMatchResult.IsMatched &&
                 !supplierMatchResult.RequiresReview &&
                 !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
 
-            var parsedRecord = CreateParsedRecord(record, parseResult, supplierMatchResult);
+            var parsedRecord = CreateParsedRecord(record, parseResult, supplierMatchResult, canCreateSupplier);
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
 
@@ -229,7 +237,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     private static UploadedInvoiceRecord CreateParsedRecord(
     UploadedInvoiceRecord processingRecord,
     InvoiceParseResult parseResult,
-    SupplierMatchResult supplierMatchResult)
+    SupplierMatchResult supplierMatchResult,
+    bool canCreateSupplier)
     {
         ArgumentNullException.ThrowIfNull(processingRecord);
         ArgumentNullException.ThrowIfNull(parseResult);
@@ -266,7 +275,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 : null,
             ExactDocumentId = null,
             PostedToExactAtUtc = null,
-            ExactPostingError = null
+            ExactPostingError = null,
+            CanCreateSupplier = canCreateSupplier
         };
     }
 }

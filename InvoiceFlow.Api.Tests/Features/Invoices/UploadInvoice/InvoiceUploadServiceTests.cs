@@ -29,7 +29,8 @@ public sealed class InvoiceUploadServiceTests
                  new LocalUploadedInvoiceFileStore(),
                  uploadedInvoiceStore,
                  new FakeExactPostOutboxWriter(),
-                 new InvoiceParseResultValidator());
+                 new InvoiceParseResultValidator(),
+                 new SupplierCreateValidator());
 
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
@@ -98,7 +99,8 @@ public sealed class InvoiceUploadServiceTests
                  new LocalUploadedInvoiceFileStore(),
                  uploadedInvoiceStore,
                  new FakeExactPostOutboxWriter(),
-                 new InvoiceParseResultValidator());
+                 new InvoiceParseResultValidator(),
+                  new SupplierCreateValidator());
 
 
             var firstFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
@@ -146,7 +148,8 @@ public sealed class InvoiceUploadServiceTests
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore,
                 new FakeExactPostOutboxWriter(),
-                new InvoiceParseResultValidator());
+                new InvoiceParseResultValidator(),
+                 new SupplierCreateValidator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -203,7 +206,8 @@ public sealed class InvoiceUploadServiceTests
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore,
                 new FakeExactPostOutboxWriter(),
-                new InvoiceParseResultValidator());
+                new InvoiceParseResultValidator(),
+                 new SupplierCreateValidator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -271,7 +275,8 @@ public sealed class InvoiceUploadServiceTests
                 new LocalUploadedInvoiceFileStore(),
                 uploadedInvoiceStore,
                 outboxWriter,
-                new InvoiceParseResultValidator());
+                new InvoiceParseResultValidator(),
+                 new SupplierCreateValidator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -308,7 +313,8 @@ public sealed class InvoiceUploadServiceTests
             new LocalUploadedInvoiceFileStore(),
             uploadedInvoiceStore,
             new FakeExactPostOutboxWriter(),
-            new InvoiceParseResultValidator());
+            new InvoiceParseResultValidator(),
+             new SupplierCreateValidator());
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
@@ -321,6 +327,53 @@ public sealed class InvoiceUploadServiceTests
         Assert.Contains(nameof(InvoiceParseResult.InvoiceNumber), response.MissingFields);
     }
 
+    [Fact]
+    public async Task UploadAsync_ShouldSetCanCreateSupplierTrue_WhenNotMatchedAndAllSupplierFieldsPresent()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        var service = new InvoiceUploadService(
+            new FullSupplierDataParser(), 
+            new NotMatchedSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore(),
+            uploadedInvoiceStore,
+            new FakeExactPostOutboxWriter(),
+            new InvoiceParseResultValidator(),
+            new SupplierCreateValidator());
+
+        IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+
+        var response = await service.UploadAsync(file, CancellationToken.None);
+
+        var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+        Assert.False(record!.IsSupplierMatched);
+        Assert.True(record.CanCreateSupplier);
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldSetCanCreateSupplierFalse_WhenNotMatchedAndMissingSupplierFields()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        var service = new InvoiceUploadService(
+            new PartialSupplierDataParser(), 
+            new NotMatchedSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore(),
+            uploadedInvoiceStore,
+            new FakeExactPostOutboxWriter(),
+            new InvoiceParseResultValidator(),
+            new SupplierCreateValidator());
+
+        IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+
+        var response = await service.UploadAsync(file, CancellationToken.None);
+
+        var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+        Assert.False(record!.IsSupplierMatched);
+        Assert.False(record.CanCreateSupplier);
+    }
     private static IFormFile CreatePdfFormFile(byte[] bytes, string fileName)
     {
         var stream = new MemoryStream(bytes);
@@ -393,6 +446,63 @@ file sealed class InvalidInvoiceParser : IInvoiceParser
             InvoiceDate = null,
             TotalAmount = null,
             Currency = ""
+        });
+    }
+}
+file sealed class FullSupplierDataParser : IInvoiceParser
+{
+    public Task<InvoiceParseResult> ParseAsync(
+        FolderInvoiceFile file,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new InvoiceParseResult
+        {
+            SupplierName = "Test Supplier",
+            InvoiceNumber = "INV-1",
+            InvoiceDate = new DateOnly(2026, 1, 1),
+            TotalAmount = 100,
+            Currency = "EUR",
+            SupplierAddressLine = "Street 1",
+            SupplierPostcode = "1234AB",
+            SupplierCity = "Amsterdam",
+            SupplierCountry = "NL"
+        });
+    }
+}
+file sealed class PartialSupplierDataParser : IInvoiceParser
+{
+    public Task<InvoiceParseResult> ParseAsync(
+        FolderInvoiceFile file,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new InvoiceParseResult
+        {
+            SupplierName = "Test Supplier",
+            InvoiceNumber = "INV-1",
+            InvoiceDate = new DateOnly(2026, 1, 1),
+            TotalAmount = 100,
+            Currency = "EUR",
+            SupplierAddressLine = null, // missing
+            SupplierPostcode = null,
+            SupplierCity = "Amsterdam",
+            SupplierCountry = null
+        });
+    }
+}
+file sealed class NotMatchedSupplierMatcher : ISupplierMatcher
+{
+    public Task<SupplierMatchResult> MatchAsync(
+        InvoiceParseResult parseResult,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new SupplierMatchResult
+        {
+            IsMatched = false,
+            RequiresReview = false,
+            MatchedBy = null,
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            Message = "Not matched"
         });
     }
 }

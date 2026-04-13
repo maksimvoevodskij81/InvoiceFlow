@@ -102,28 +102,13 @@ public sealed class InvoicesController : ControllerBase
 
         if (missingFields.Count > 0)
         {
-            var invalidResponse = new ImportInvoicesFromFolderResponse
-            {
-                FileName = file.FileName,
-                FullPath = file.FullPath,
-                ContentType = file.ContentType,
-                Status = InvoiceStatuses.Invalid,
-                SupplierName = parseResult.SupplierName,
-                InvoiceNumber = parseResult.InvoiceNumber,
-                InvoiceDate = parseResult.InvoiceDate,
-                TotalAmount = parseResult.TotalAmount,
-                Currency = parseResult.Currency,
-                IsSupplierMatched = false,
-                RequiresSupplierReview = false,
-                SupplierMatchedBy = null,
-                InternalSupplierId = null,
-                ExactSupplierId = null,
-                SupplierMatchMessage = InvoiceMessages.MissingRequiredFields(missingFields)
-            };
+            var invalidResponse = CreateInvalidImportInvoicesFromFolderResponse(
+                file,
+                parseResult,
+                missingFields);
 
             return Ok(invalidResponse);
         }
-
         var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult, cancellationToken);
         var response = CreateImportInvoicesFromFolderResponse(file, parseResult, supplierMatchResult);
 
@@ -163,7 +148,8 @@ public sealed class InvoicesController : ControllerBase
             ExactPostingStatus = record.ExactPostingStatus,
             ExactDocumentId = record.ExactDocumentId,
             PostedToExactAtUtc = record.PostedToExactAtUtc,
-            ExactPostingError = record.ExactPostingError
+            ExactPostingError = record.ExactPostingError,
+            CanCreateSupplier = record.CanCreateSupplier,
         };
 
         return Ok(response);
@@ -205,7 +191,8 @@ public sealed class InvoicesController : ControllerBase
             ExactPostingStatus = record.ExactPostingStatus,
             ExactDocumentId = record.ExactDocumentId,
             PostedToExactAtUtc = record.PostedToExactAtUtc,
-            ExactPostingError = record.ExactPostingError
+            ExactPostingError = record.ExactPostingError,
+            CanCreateSupplier = record.CanCreateSupplier,
         };
 
         return Ok(response);
@@ -216,11 +203,7 @@ public sealed class InvoicesController : ControllerBase
     InvoiceParseResult parseResult,
     SupplierMatchResult supplierMatchResult)
     {
-        var isReadyToPost =
-            supplierMatchResult.IsMatched &&
-            !supplierMatchResult.RequiresReview &&
-            !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
-
+        var isReadyToPost = IsReadyToPost(supplierMatchResult);
         return new ImportInvoicesFromFolderResponse
         {
             FileName = file.FileName,
@@ -241,5 +224,39 @@ public sealed class InvoicesController : ControllerBase
             ExactSupplierId = supplierMatchResult.ExactSupplierId,
             SupplierMatchMessage = supplierMatchResult.Message
         };
+    }
+
+    private static ImportInvoicesFromFolderResponse CreateInvalidImportInvoicesFromFolderResponse(
+    FolderInvoiceFile file,
+    InvoiceParseResult parseResult,
+    List<string> missingFields)
+    {
+        return new ImportInvoicesFromFolderResponse
+        {
+            FileName = file.FileName,
+            FullPath = file.FullPath,
+            ContentType = file.ContentType,
+            Status = InvoiceStatuses.Invalid,
+            SupplierName = parseResult.SupplierName,
+            InvoiceNumber = parseResult.InvoiceNumber,
+            InvoiceDate = parseResult.InvoiceDate,
+            TotalAmount = parseResult.TotalAmount,
+            Currency = parseResult.Currency,
+            IsSupplierMatched = false,
+            RequiresSupplierReview = false,
+            SupplierMatchedBy = null,
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            SupplierMatchMessage = InvoiceMessages.MissingRequiredFields(missingFields)
+        };
+    }
+
+    private static bool IsReadyToPost(SupplierMatchResult supplierMatchResult)
+    {
+        ArgumentNullException.ThrowIfNull(supplierMatchResult);
+
+        return supplierMatchResult.IsMatched &&
+               !supplierMatchResult.RequiresReview &&
+               !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
     }
 }

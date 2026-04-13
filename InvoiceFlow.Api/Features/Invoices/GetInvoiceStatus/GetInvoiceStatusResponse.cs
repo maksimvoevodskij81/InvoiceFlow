@@ -36,4 +36,5 @@ public sealed class GetInvoiceStatusResponse
     public DateTime? PostedToExactAtUtc { get; set; }
 
     public string? ExactPostingError { get; set; }
+    public bool CanCreateSupplier { get; set; }
 }
