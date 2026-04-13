@@ -461,6 +461,7 @@ public sealed class InvoicesControllerTests
         }
     }
 
+
     [Fact]
     public async Task ImportFromFolder_ShouldReturnReadyToPost_WhenInvoiceIsValidAndSupplierIsMatchedWithoutReview()
     {
@@ -499,6 +500,58 @@ public sealed class InvoicesControllerTests
         {
             Directory.Delete(folderPath, true);
         }
+    }
+
+
+    [Fact]
+    public async Task Upload_ShouldReturnInvalidResponse_WithMissingFields_WhenUploadServiceReturnsInvalid()
+    {
+        var uploadService = new FakeInvoiceUploadService
+        {
+            Response = new UploadInvoiceAcceptedResponse
+            {
+                InvoiceId = "invalid-123",
+                Status = InvoiceStatuses.Invalid,
+                Message = "Missing required fields: SupplierName, InvoiceNumber",
+                MissingFields = new List<string>
+            {
+                "SupplierName",
+                "InvoiceNumber"
+            }
+            }
+        };
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            uploadService,
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator());
+
+        await using var stream = new MemoryStream(new byte[] { 1, 2, 3, 4 });
+        var formFile = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/pdf"
+        };
+
+        var request = new UploadInvoiceRequest
+        {
+            File = formFile
+        };
+
+        var result = await controller.Upload(request, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<UploadInvoiceAcceptedResponse>(okResult.Value);
+
+        Assert.Equal("invalid-123", response.InvoiceId);
+        Assert.Equal(InvoiceStatuses.Invalid, response.Status);
+        Assert.Equal("Missing required fields: SupplierName, InvoiceNumber", response.Message);
+        Assert.Equal(2, response.MissingFields.Count);
+        Assert.Contains("SupplierName", response.MissingFields);
+        Assert.Contains("InvoiceNumber", response.MissingFields);
     }
 }
 

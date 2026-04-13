@@ -297,6 +297,30 @@ public sealed class InvoiceUploadServiceTests
         }
     }
 
+    [Fact]
+    public async Task UploadAsync_ShouldReturnMissingFields_WhenInvoiceIsInvalid()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        var service = new InvoiceUploadService(
+            new InvalidInvoiceParser(), // ← important
+            new FakeSupplierMatcher(),
+            new LocalUploadedInvoiceFileStore(),
+            uploadedInvoiceStore,
+            new FakeExactPostOutboxWriter(),
+            new InvoiceParseResultValidator());
+
+        IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+
+        var response = await service.UploadAsync(file, CancellationToken.None);
+
+        Assert.Equal(InvoiceStatuses.Invalid, response.Status);
+        Assert.NotEmpty(response.MissingFields);
+
+        Assert.Contains(nameof(InvoiceParseResult.SupplierName), response.MissingFields);
+        Assert.Contains(nameof(InvoiceParseResult.InvoiceNumber), response.MissingFields);
+    }
+
     private static IFormFile CreatePdfFormFile(byte[] bytes, string fileName)
     {
         var stream = new MemoryStream(bytes);
@@ -353,5 +377,22 @@ public sealed class InvoiceUploadServiceTests
 
             return Task.FromResult(result);
         }
+    }
+}
+
+file sealed class InvalidInvoiceParser : IInvoiceParser
+{
+    public Task<InvoiceParseResult> ParseAsync(
+        FolderInvoiceFile file,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new InvoiceParseResult
+        {
+            SupplierName = "",
+            InvoiceNumber = "",
+            InvoiceDate = null,
+            TotalAmount = null,
+            Currency = ""
+        });
     }
 }
