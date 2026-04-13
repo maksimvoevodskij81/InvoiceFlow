@@ -21,14 +21,15 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(), 
+            new InvoiceParseResultValidator());
 
         var request = new ImportInvoicesFromFolderRequest
         {
             FolderPath = string.Empty
         };
 
-        var result = await controller.ImportFromFolder(request);
+        var result = await controller.ImportFromFolder(request, CancellationToken.None);
 
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result.Result);
 
@@ -43,7 +44,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator());
 
         var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
@@ -57,7 +59,7 @@ public sealed class InvoicesControllerTests
                 FolderPath = folderPath
             };
 
-            var result = await controller.ImportFromFolder(request);
+            var result = await controller.ImportFromFolder(request, CancellationToken.None);
 
             Assert.IsType<NotFoundResult>(result.Result);
         }
@@ -75,7 +77,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(), 
+            new InvoiceParseResultValidator());
 
         var request = new UploadInvoiceRequest
         {
@@ -97,7 +100,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(), 
+            new InvoiceParseResultValidator());
 
         await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
 
@@ -123,7 +127,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(), 
+            new InvoiceParseResultValidator());
 
         var buffer = new byte[(10 * 1024 * 1024) + 1];
         await using var stream = new MemoryStream(buffer);
@@ -160,7 +165,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             uploadService,
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(), 
+            new InvoiceParseResultValidator());
 
         await using var stream = new MemoryStream(new byte[] { 1, 2, 3, 4 });
         var formFile = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -207,7 +213,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            uploadedInvoiceStore);
+            uploadedInvoiceStore, 
+            new InvoiceParseResultValidator());
 
         var result = await controller.GetStatus("123", CancellationToken.None);
 
@@ -227,7 +234,7 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(), new InvoiceParseResultValidator());
 
         var result = await controller.GetStatus("missing-id", CancellationToken.None);
 
@@ -266,7 +273,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            uploadedInvoiceStore);
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator());
 
         var result = await controller.GetStatus("parsed-123", CancellationToken.None);
 
@@ -321,7 +329,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            uploadedInvoiceStore);
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator());
 
         var result = await controller.GetStatus("review-123", CancellationToken.None);
 
@@ -370,7 +379,8 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            uploadedInvoiceStore);
+            uploadedInvoiceStore, 
+            new InvoiceParseResultValidator());
 
         var result = await controller.GetById("details-123", CancellationToken.None);
 
@@ -403,10 +413,106 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore());
+            new FakeUploadedInvoiceStore(), 
+            new InvoiceParseResultValidator());
 
         var result = await controller.GetById("missing-details-id", CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task ImportFromFolder_ShouldReturnInvalid_WhenParsedInvoiceIsMissingRequiredFields()
+    {
+        var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(folderPath);
+        var filePath = Path.Combine(folderPath, "invoice.pdf");
+        await File.WriteAllBytesAsync(filePath, new byte[] { 1, 2, 3 });
+
+        try
+        {
+            var controller = new InvoicesController(
+                new LocalInvoiceFolderReader(),
+                new InvalidInvoiceParser(),
+                new FakeSupplierMatcher(),
+                new FakeInvoiceUploadService(),
+                new FakeUploadedInvoiceStore(),
+                new InvoiceParseResultValidator());
+
+            var request = new ImportInvoicesFromFolderRequest
+            {
+                FolderPath = folderPath
+            };
+
+            var result = await controller.ImportFromFolder(request, CancellationToken.None);
+
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var response = Assert.IsType<ImportInvoicesFromFolderResponse>(okResult.Value);
+
+            Assert.Equal(InvoiceStatuses.Invalid, response.Status);
+            Assert.False(response.IsSupplierMatched);
+            Assert.False(response.RequiresSupplierReview);
+            Assert.Contains("Missing required fields:", response.SupplierMatchMessage);
+        }
+        finally
+        {
+            Directory.Delete(folderPath, true);
+        }
+    }
+
+    [Fact]
+    public async Task ImportFromFolder_ShouldReturnReadyToPost_WhenInvoiceIsValidAndSupplierIsMatchedWithoutReview()
+    {
+        var folderPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(folderPath);
+        var filePath = Path.Combine(folderPath, "invoice.pdf");
+        await File.WriteAllBytesAsync(filePath, new byte[] { 1, 2, 3 });
+
+        try
+        {
+            var controller = new InvoicesController(
+                new LocalInvoiceFolderReader(),
+                new FakeInvoiceParser(),
+                new FakeSupplierMatcher(),
+                new FakeInvoiceUploadService(),
+                new FakeUploadedInvoiceStore(),
+                new InvoiceParseResultValidator());
+
+            var request = new ImportInvoicesFromFolderRequest
+            {
+                FolderPath = folderPath
+            };
+
+            var result = await controller.ImportFromFolder(request, CancellationToken.None);
+
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var response = Assert.IsType<ImportInvoicesFromFolderResponse>(okResult.Value);
+
+            Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
+            Assert.True(response.IsSupplierMatched);
+            Assert.False(response.RequiresSupplierReview);
+            Assert.Equal("exact-supplier-001", response.ExactSupplierId);
+        }
+        finally
+        {
+            Directory.Delete(folderPath, true);
+        }
+    }
+}
+
+file sealed class InvalidInvoiceParser : IInvoiceParser
+{
+    public Task<InvoiceParseResult> ParseAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new InvoiceParseResult
+        {
+            SupplierName = string.Empty,
+            InvoiceNumber = string.Empty,
+            InvoiceDate = null,
+            TotalAmount = null,
+            Currency = string.Empty
+        });
     }
 }

@@ -1,4 +1,5 @@
 ﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
@@ -16,6 +17,7 @@ public sealed class InvoicesController : ControllerBase
     private readonly ISupplierMatcher _supplierMatcher;
     private readonly IInvoiceUploadService _invoiceUploadService;
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
+    private readonly InvoiceParseResultValidator _invoiceParseResultValidator;
 
     private const long MaxUploadFileSizeInBytes = 10 * 1024 * 1024;
 
@@ -34,13 +36,15 @@ public sealed class InvoicesController : ControllerBase
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
         IInvoiceUploadService invoiceUploadService,
-        IUploadedInvoiceStore uploadedInvoiceStore)
+        IUploadedInvoiceStore uploadedInvoiceStore,
+        InvoiceParseResultValidator invoiceParseResultValidator)
     {
         _invoiceFolderReader = invoiceFolderReader;
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
         _invoiceUploadService = invoiceUploadService;
         _uploadedInvoiceStore = uploadedInvoiceStore;
+        _invoiceParseResultValidator = invoiceParseResultValidator;
     }
 
     [HttpPost("upload")]
@@ -72,12 +76,13 @@ public sealed class InvoicesController : ControllerBase
 
         return Ok(response);
     }
-
     [HttpPost("import-from-folder")]
     [ProducesResponseType(typeof(ImportInvoicesFromFolderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ImportInvoicesFromFolderResponse>> ImportFromFolder([FromBody] ImportInvoicesFromFolderRequest request)
+    public async Task<ActionResult<ImportInvoicesFromFolderResponse>> ImportFromFolder(
+        [FromBody] ImportInvoicesFromFolderRequest request,
+        CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.FolderPath))
         {
@@ -91,8 +96,35 @@ public sealed class InvoicesController : ControllerBase
             return NotFound();
         }
 
-        var parseResult = await _invoiceParser.ParseAsync(file);
-        var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult);
+        var parseResult = await _invoiceParser.ParseAsync(file, cancellationToken);
+
+        List<string> missingFields = _invoiceParseResultValidator.Validate(parseResult);
+
+        if (missingFields.Count > 0)
+        {
+            var invalidResponse = new ImportInvoicesFromFolderResponse
+            {
+                FileName = file.FileName,
+                FullPath = file.FullPath,
+                ContentType = file.ContentType,
+                Status = InvoiceStatuses.Invalid,
+                SupplierName = parseResult.SupplierName,
+                InvoiceNumber = parseResult.InvoiceNumber,
+                InvoiceDate = parseResult.InvoiceDate,
+                TotalAmount = parseResult.TotalAmount,
+                Currency = parseResult.Currency,
+                IsSupplierMatched = false,
+                RequiresSupplierReview = false,
+                SupplierMatchedBy = null,
+                InternalSupplierId = null,
+                ExactSupplierId = null,
+                SupplierMatchMessage = InvoiceMessages.MissingRequiredFields(missingFields)
+            };
+
+            return Ok(invalidResponse);
+        }
+
+        var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult, cancellationToken);
         var response = CreateImportInvoicesFromFolderResponse(file, parseResult, supplierMatchResult);
 
         return Ok(response);
@@ -180,16 +212,23 @@ public sealed class InvoicesController : ControllerBase
     }
 
     private static ImportInvoicesFromFolderResponse CreateImportInvoicesFromFolderResponse(
-        FolderInvoiceFile file,
-        InvoiceParseResult parseResult,
-        SupplierMatchResult supplierMatchResult)
+    FolderInvoiceFile file,
+    InvoiceParseResult parseResult,
+    SupplierMatchResult supplierMatchResult)
     {
+        var isReadyToPost =
+            supplierMatchResult.IsMatched &&
+            !supplierMatchResult.RequiresReview &&
+            !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
+
         return new ImportInvoicesFromFolderResponse
         {
             FileName = file.FileName,
             FullPath = file.FullPath,
             ContentType = file.ContentType,
-            Status = InvoiceStatuses.Parsed,
+            Status = isReadyToPost
+                ? InvoiceStatuses.ReadyToPost
+                : InvoiceStatuses.Parsed,
             SupplierName = parseResult.SupplierName,
             InvoiceNumber = parseResult.InvoiceNumber,
             InvoiceDate = parseResult.InvoiceDate,
