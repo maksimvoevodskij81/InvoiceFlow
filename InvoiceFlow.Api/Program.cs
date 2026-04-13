@@ -1,6 +1,7 @@
 using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
 using InvoiceFlow.Api.Infrastructure;
 using InvoiceFlow.Api.Infrastructure.Background;
 using InvoiceFlow.Api.Infrastructure.Exact;
@@ -25,6 +26,10 @@ builder.Services.AddScoped<IExactPostOutboxWriter, EfExactPostOutboxWriter>();
 builder.Services.AddScoped<IExactInvoicePostingService, FakeExactInvoicePostingService>();
 builder.Services.AddHostedService<ExactPostOutboxWorker>();
 builder.Services.AddScoped<InvoiceParseResultValidator>();
+builder.Services.AddScoped<SupplierCreateValidator>();
+builder.Services.AddScoped<ISupplierCreateOutboxWriter, EfSupplierCreateOutboxWriter>();
+builder.Services.AddScoped<ISupplierCreator, FakeSupplierCreator>();
+builder.Services.AddHostedService<SupplierCreateWorker>();
 
 builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>
 {

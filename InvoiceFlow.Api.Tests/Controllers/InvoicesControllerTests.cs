@@ -1,5 +1,6 @@
 ﻿using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Controllers;
+using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
@@ -358,7 +359,7 @@ public sealed class InvoicesControllerTests
             OriginalFileName = "invoice.pdf",
             StoredFilePath = Path.Combine("temp", "invoice.pdf"),
             Status = InvoiceStatuses.Parsed,
-            Message = "Invoice parsed successfully.",
+            Message = InvoiceMessages.ParsedButRequiresSupplierReview,
             CreatedAtUtc = new DateTime(2026, 4, 8, 10, 30, 0, DateTimeKind.Utc),
             FileHash = "test-hash-details-123",
             SupplierName = "Demo Supplier",
@@ -368,7 +369,7 @@ public sealed class InvoicesControllerTests
             Currency = "EUR",
             IsSupplierMatched = true,
             RequiresSupplierReview = false,
-            SupplierMatchedBy = "BankAccount",
+            SupplierMatchedBy = SupplierMatchSources.BankAccount,
             InternalSupplierId = "internal-supplier-001",
             ExactSupplierId = "exact-supplier-001",
             SupplierMatchMessage = "Supplier matched successfully."

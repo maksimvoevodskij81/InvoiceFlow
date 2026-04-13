@@ -9,6 +9,7 @@ public static class InvoiceMessages
     public const string ParsedSuccessfully = "Invoice parsed successfully.";
     public const string ParsedButRequiresSupplierReview = "Invoice parsed successfully, but requires supplier review.";
     public const string ReadyToPost = "Invoice parsed, validated, and ready to post.";
+    public const string SupplierCreatedInExactSuccessfully = "Supplier created in Exact successfully.";
 
     public static string MissingRequiredFields(IEnumerable<string> missingFields)
     {

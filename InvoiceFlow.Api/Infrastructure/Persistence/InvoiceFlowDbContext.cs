@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
+using Microsoft.EntityFrameworkCore;
 
 namespace InvoiceFlow.Api.Infrastructure.Persistence;
 
@@ -11,6 +12,7 @@ public sealed class InvoiceFlowDbContext : DbContext
 
     public DbSet<UploadedInvoiceEntity> UploadedInvoices => Set<UploadedInvoiceEntity>();
     public DbSet<ExactPostOutboxEntity> ExactPostOutbox => Set<ExactPostOutboxEntity>();
+    public DbSet<SupplierCreateOutboxEntity> SupplierCreateOutbox => Set<SupplierCreateOutboxEntity>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -92,5 +94,27 @@ public sealed class InvoiceFlowDbContext : DbContext
 
         exactPostOutbox.HasIndex(x => x.InvoiceId)
             .IsUnique();
+
+        modelBuilder.Entity<SupplierCreateOutboxEntity>(entity =>
+        {
+            entity.ToTable("SupplierCreateOutbox");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.InvoiceId)
+                .IsRequired();
+
+            entity.Property(x => x.Status)
+                .IsRequired();
+
+            entity.Property(x => x.AttemptCount)
+                .IsRequired();
+
+            entity.Property(x => x.CreatedAtUtc)
+                .IsRequired();
+
+            entity.HasIndex(x => x.InvoiceId)
+                .IsUnique();
+        });
     }
 }

@@ -1,6 +1,7 @@
 ﻿using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
+using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
 using System.Security.Cryptography;
 
 namespace InvoiceFlow.Api.Features.Invoices.UploadInvoice;
@@ -14,6 +15,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     private readonly IExactPostOutboxWriter _exactPostOutboxWriter;
     private readonly InvoiceParseResultValidator _invoiceParseResultValidator;
     private readonly SupplierCreateValidator _supplierCreateValidator;
+    private readonly ISupplierCreateOutboxWriter _supplierCreateOutboxWriter;
     public InvoiceUploadService(
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
@@ -21,7 +23,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         IUploadedInvoiceStore uploadedInvoiceStore,
         IExactPostOutboxWriter exactPostOutboxWriter,
         InvoiceParseResultValidator invoiceParseResultValidator,
-        SupplierCreateValidator supplierCreateValidator)
+        SupplierCreateValidator supplierCreateValidator,
+        ISupplierCreateOutboxWriter supplierCreateOutboxWriter)
     {
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
@@ -30,6 +33,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         _exactPostOutboxWriter = exactPostOutboxWriter;
         _invoiceParseResultValidator = invoiceParseResultValidator;
         _supplierCreateValidator = supplierCreateValidator;
+        _supplierCreateOutboxWriter = supplierCreateOutboxWriter;
     }
 
     public async Task<UploadInvoiceAcceptedResponse> UploadAsync(
@@ -96,6 +100,11 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             var parsedRecord = CreateParsedRecord(record, parseResult, supplierMatchResult, canCreateSupplier);
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
+
+            if (canCreateSupplier)
+            {
+                await _supplierCreateOutboxWriter.EnqueueAsync(parsedRecord.InvoiceId, cancellationToken);
+            }
 
             if (isReadyToPost)
             {

@@ -12,4 +12,8 @@ public interface IUploadedInvoiceStore
         string status,
         string? message,
         CancellationToken cancellationToken = default);
+    Task UpdateSupplierCreationResultAsync(
+        string invoiceId,
+        string exactSupplierId,
+        CancellationToken cancellationToken = default);
 }

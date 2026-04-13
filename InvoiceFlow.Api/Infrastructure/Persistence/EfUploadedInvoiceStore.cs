@@ -1,4 +1,6 @@
-﻿using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices;
+using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using Microsoft.EntityFrameworkCore;
 
 namespace InvoiceFlow.Api.Infrastructure.Persistence;
@@ -74,6 +76,36 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
 
         entity.Status = status;
         entity.Message = message;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateSupplierCreationResultAsync(
+        string invoiceId,
+        string exactSupplierId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(exactSupplierId);
+
+        var entity = await _dbContext.UploadedInvoices
+            .SingleOrDefaultAsync(x => x.InvoiceId == invoiceId, cancellationToken);
+
+        if (entity is null)
+        {
+            throw new InvalidOperationException($"Uploaded invoice with id '{invoiceId}' was not found.");
+        }
+
+        entity.IsSupplierMatched = true;
+        entity.RequiresSupplierReview = false;
+        entity.CanCreateSupplier = false;
+
+        entity.ExactSupplierId = exactSupplierId;
+        entity.SupplierMatchedBy = SupplierMatchSources.CreatedInExact;
+        entity.SupplierMatchMessage = InvoiceMessages.SupplierCreatedInExactSuccessfully;
+
+        entity.Status = InvoiceStatuses.ReadyToPost;
+        entity.Message = InvoiceMessages.ReadyToPost;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }

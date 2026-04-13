@@ -30,7 +30,8 @@ public sealed class InvoiceUploadServiceTests
                  uploadedInvoiceStore,
                  new FakeExactPostOutboxWriter(),
                  new InvoiceParseResultValidator(),
-                 new SupplierCreateValidator());
+                 new SupplierCreateValidator(),
+                 new FakeSupplierCreateOutboxWriter());
 
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
@@ -100,7 +101,8 @@ public sealed class InvoiceUploadServiceTests
                  uploadedInvoiceStore,
                  new FakeExactPostOutboxWriter(),
                  new InvoiceParseResultValidator(),
-                  new SupplierCreateValidator());
+                 new SupplierCreateValidator(),
+                 new FakeSupplierCreateOutboxWriter());
 
 
             var firstFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
@@ -149,7 +151,8 @@ public sealed class InvoiceUploadServiceTests
                 uploadedInvoiceStore,
                 new FakeExactPostOutboxWriter(),
                 new InvoiceParseResultValidator(),
-                 new SupplierCreateValidator());
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -207,7 +210,8 @@ public sealed class InvoiceUploadServiceTests
                 uploadedInvoiceStore,
                 new FakeExactPostOutboxWriter(),
                 new InvoiceParseResultValidator(),
-                 new SupplierCreateValidator());
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -276,7 +280,8 @@ public sealed class InvoiceUploadServiceTests
                 uploadedInvoiceStore,
                 outboxWriter,
                 new InvoiceParseResultValidator(),
-                 new SupplierCreateValidator());
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -314,7 +319,8 @@ public sealed class InvoiceUploadServiceTests
             uploadedInvoiceStore,
             new FakeExactPostOutboxWriter(),
             new InvoiceParseResultValidator(),
-             new SupplierCreateValidator());
+             new SupplierCreateValidator(),
+             new FakeSupplierCreateOutboxWriter());
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
@@ -339,7 +345,8 @@ public sealed class InvoiceUploadServiceTests
             uploadedInvoiceStore,
             new FakeExactPostOutboxWriter(),
             new InvoiceParseResultValidator(),
-            new SupplierCreateValidator());
+            new SupplierCreateValidator(), 
+            new FakeSupplierCreateOutboxWriter());
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
@@ -363,7 +370,8 @@ public sealed class InvoiceUploadServiceTests
             uploadedInvoiceStore,
             new FakeExactPostOutboxWriter(),
             new InvoiceParseResultValidator(),
-            new SupplierCreateValidator());
+            new SupplierCreateValidator(), 
+            new FakeSupplierCreateOutboxWriter());
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
@@ -373,6 +381,58 @@ public sealed class InvoiceUploadServiceTests
 
         Assert.False(record!.IsSupplierMatched);
         Assert.False(record.CanCreateSupplier);
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldEnqueueSupplierCreateOutbox_WhenSupplierIsNotMatchedAndCanCreateSupplierIsTrue()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var supplierCreateOutboxWriter = new FakeSupplierCreateOutboxWriter();
+
+            var service = new InvoiceUploadService(
+                new FullSupplierDataParser(),
+                new NotMatchedSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(), 
+                supplierCreateOutboxWriter);
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+            Assert.NotNull(record);
+            Assert.False(record!.IsSupplierMatched);
+            Assert.True(record.CanCreateSupplier);
+
+            Assert.Single(supplierCreateOutboxWriter.EnqueuedInvoiceIds);
+            Assert.Equal(response.InvoiceId, supplierCreateOutboxWriter.EnqueuedInvoiceIds[0]);
+
+            Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+            Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            Directory.Delete(tempRoot, true);
+        }
     }
     private static IFormFile CreatePdfFormFile(byte[] bytes, string fileName)
     {

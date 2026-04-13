@@ -1,4 +1,5 @@
 ﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -93,7 +94,7 @@ public sealed class EfUploadedInvoiceStoreTests
             Currency = "EUR",
             IsSupplierMatched = true,
             RequiresSupplierReview = false,
-            SupplierMatchedBy = "BankAccount",
+            SupplierMatchedBy = SupplierMatchSources.BankAccount
             InternalSupplierId = "internal-supplier-001",
             ExactSupplierId = "exact-supplier-001",
             SupplierMatchMessage = "Supplier matched successfully."
