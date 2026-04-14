@@ -25,7 +25,7 @@ builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFil
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();
 builder.Services.AddScoped<IExactPostOutboxWriter, EfExactPostOutboxWriter>();
-builder.Services.AddScoped<IExactInvoicePostingService, FakeExactInvoicePostingService>();
+builder.Services.AddScoped<IExactInvoicePostingService, ExactInvoicePostingService>();
 builder.Services.AddHostedService<ExactPostOutboxWorker>();
 builder.Services.AddScoped<InvoiceParseResultValidator>();
 builder.Services.AddScoped<SupplierCreateValidator>();

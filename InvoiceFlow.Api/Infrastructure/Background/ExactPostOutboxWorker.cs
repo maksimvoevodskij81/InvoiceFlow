@@ -63,35 +63,54 @@ public sealed class ExactPostOutboxWorker : BackgroundService
             message.LastError = null;
 
             await dbContext.SaveChangesAsync(cancellationToken);
-            var invoiceToUpdate = await uploadedInvoiceStore.GetByIdAsync(message.InvoiceId, cancellationToken);
+            var invoice = await uploadedInvoiceStore.GetByIdAsync(message.InvoiceId, cancellationToken);
 
             try
             {
-                var invoice = await uploadedInvoiceStore.GetByIdAsync(message.InvoiceId, cancellationToken);
+                var invoiceToUpdate = invoice;
 
                 if (invoice is null)
                 {
                     message.Status = ExactPostOutboxStatuses.Failed;
                     message.LastError = "Uploaded invoice record not found.";
-                    message.NextAttemptAtUtc = utcNow.AddMinutes(5);
+                    message.NextAttemptAtUtc = utcNow.AddMinutes(GetRetryDelayMinutes(message.AttemptCount));
 
                     await dbContext.SaveChangesAsync(cancellationToken);
                     continue;
                 }
 
-                var result = await exactInvoicePostingService.PostAsync(invoice, cancellationToken);
+                if (string.IsNullOrWhiteSpace(invoice.ExactSupplierId))
+                {
+                    message.Status = ExactPostOutboxStatuses.Failed;
+                    message.LastError = "Exact supplier id is missing.";
+                    message.NextAttemptAtUtc = utcNow.AddMinutes(GetRetryDelayMinutes(message.AttemptCount));
 
-                if (result.Success)
+                    if (invoiceToUpdate is not null)
+                    {
+                        invoiceToUpdate.ExactPostingStatus = ExactPostingStatuses.Failed;
+                        invoiceToUpdate.ExactPostingError = "Exact supplier id is missing.";
+
+                        await uploadedInvoiceStore.SaveAsync(invoiceToUpdate, cancellationToken);
+                    }
+
+                    await dbContext.SaveChangesAsync(cancellationToken);
+                    continue;
+                }
+
+                var request = CreatePostingRequest(invoice);
+
+                var result = await exactInvoicePostingService.PostAsync(request, cancellationToken);
+
+                if (result.IsSuccess)
                 {
                     message.Status = ExactPostOutboxStatuses.Posted;
-                    message.ExternalDocumentId = result.ExternalDocumentId;
+                    message.ExternalDocumentId = result.ExactDocumentId;
                     message.NextAttemptAtUtc = null;
-                    message.LastError = null;
 
                     if (invoiceToUpdate is not null)
                     {
                         invoiceToUpdate.ExactPostingStatus = ExactPostingStatuses.Posted;
-                        invoiceToUpdate.ExactDocumentId = result.ExternalDocumentId;
+                        invoiceToUpdate.ExactDocumentId = result.ExactDocumentId;
                         invoiceToUpdate.PostedToExactAtUtc = utcNow;
                         invoiceToUpdate.ExactPostingError = null;
 
@@ -123,12 +142,12 @@ public sealed class ExactPostOutboxWorker : BackgroundService
                 message.LastError = exception.Message;
                 message.NextAttemptAtUtc = utcNow.AddMinutes(GetRetryDelayMinutes(message.AttemptCount));
 
-                if (invoiceToUpdate is not null)
+                if (invoice is not null)
                 {
-                    invoiceToUpdate.ExactPostingStatus = ExactPostingStatuses.Failed;
-                    invoiceToUpdate.ExactPostingError = exception.Message;
+                    invoice.ExactPostingStatus = ExactPostingStatuses.Failed;
+                    invoice.ExactPostingError = exception.Message;
 
-                    await uploadedInvoiceStore.SaveAsync(invoiceToUpdate, cancellationToken);
+                    await uploadedInvoiceStore.SaveAsync(invoice, cancellationToken);
                 }
                 await dbContext.SaveChangesAsync(cancellationToken);
             }
@@ -138,5 +157,19 @@ public sealed class ExactPostOutboxWorker : BackgroundService
     private static int GetRetryDelayMinutes(int attemptCount)
     {
         return Math.Min(30, Math.Max(5, attemptCount * 5));
+    }
+    private static ExactInvoicePostingRequest CreatePostingRequest(UploadedInvoiceRecord invoice)
+    {
+        ArgumentNullException.ThrowIfNull(invoice);
+
+        return new ExactInvoicePostingRequest
+        {
+            InvoiceNumber = invoice.InvoiceNumber ?? string.Empty,
+            InvoiceDate = invoice.InvoiceDate,
+            TotalAmount = invoice.TotalAmount,
+            Currency = invoice.Currency ?? string.Empty,
+            Description = invoice.SupplierName,
+            ExactSupplierId = invoice.ExactSupplierId ?? string.Empty
+        };
     }
 }

@@ -1,18 +1,18 @@
 ﻿using InvoiceFlow.Api.Features.Exact;
-using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 
 namespace InvoiceFlow.Api.Infrastructure.Exact;
 
 public sealed class FakeExactInvoicePostingService : IExactInvoicePostingService
 {
-    public Task<ExactPostResult> PostAsync(UploadedInvoiceRecord invoice, CancellationToken cancellationToken = default)
+    public Task<ExactInvoicePostingResponse> PostAsync(ExactInvoicePostingRequest request, CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(invoice);
+        ArgumentNullException.ThrowIfNull(request);
 
-        var result = new ExactPostResult
+        var result = new ExactInvoicePostingResponse
         {
-            Success = true,
-            ExternalDocumentId = $"EXACT-{invoice.InvoiceId}"
+            IsSuccess = true,
+            ExactDocumentId = $"fake-doc-{request.InvoiceNumber}",
+            ErrorMessage = null
         };
 
         return Task.FromResult(result);

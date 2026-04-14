@@ -4,6 +4,6 @@ using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 
 public interface IExactInvoicePostingService
 {
-    Task<ExactPostResult> PostAsync(UploadedInvoiceRecord invoice, CancellationToken cancellationToken = default);
+    Task<ExactInvoicePostingResponse> PostAsync(ExactInvoicePostingRequest request, CancellationToken cancellationToken = default);
 }
 
