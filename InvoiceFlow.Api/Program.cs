@@ -43,6 +43,14 @@ builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("InvoiceFlowDatabase"));
 });
 
+builder.Services.AddHttpClient<ISupplierCreator, ExactSupplierCreator>(client =>
+{
+    client.BaseAddress = new Uri("https://api.exactonline.com/");
+});
+
+builder.Services.Configure<ExactOptions>(
+    builder.Configuration.GetSection("Exact"));
+
 builder.Services.AddScoped<IUploadedInvoiceStore, EfUploadedInvoiceStore>();
 var app = builder.Build();
 

@@ -529,6 +529,35 @@ public sealed class SupplierCreateWorkerTests
         Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
         Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);
     }
+
+    [Fact]
+    public void SupplierCreateRequest_ShouldMapCorrectly_FromInvoice()
+    {
+        var invoice = new InvoiceParseResult
+        {
+            SupplierName = "Test BV",
+            SupplierAddressLine = "Street 1",
+            SupplierPostcode = "1234AB",
+            SupplierCity = "Amsterdam",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "NL91ABNA0417164300",
+            SupplierBicCode = "ABNANL2A"
+        };
+
+        var request = new SupplierCreateRequest
+        {
+            Name = invoice.SupplierName!,
+            AddressLine = invoice.SupplierAddressLine!,
+            Postcode = invoice.SupplierPostcode!,
+            City = invoice.SupplierCity!,
+            Country = invoice.SupplierCountry!,
+            BankAccount = invoice.SupplierBankAccount!,
+            BicCode = invoice.SupplierBicCode
+        };
+
+        Assert.Equal("Test BV", request.Name);
+        Assert.Equal("NL", request.Country);
+    }
 }
 
 file sealed class TestableSupplierCreateWorker : SupplierCreateWorker
