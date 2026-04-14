@@ -1,6 +1,7 @@
 ﻿using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices;
+using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
 using InvoiceFlow.Api.Features.Suppliers.Idempotency;
@@ -309,6 +310,225 @@ public sealed class SupplierCreateWorkerTests
         Assert.Equal(1, exactPostOutboxWriter.EnqueueCallsCount);
         Assert.Equal("inv-retry-1", exactPostOutboxWriter.LastEnqueuedInvoiceId);
     }
+
+    [Fact]
+    public async Task ProcessPendingMessagesAsync_ShouldReuseExistingSupplierMapping_WhenSupplierFingerprintExists()
+    {
+        var options = new DbContextOptionsBuilder<InvoiceFlowDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new InvoiceFlowDbContext(options);
+
+        dbContext.SupplierCreateOutbox.Add(new SupplierCreateOutboxEntity
+        {
+            Id = Guid.NewGuid(),
+            InvoiceId = "inv-map-1",
+            Status = SupplierCreateOutboxStatuses.Pending,
+            AttemptCount = 0,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "inv-map-1",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = "temp/invoice.pdf",
+            Status = InvoiceStatuses.Parsed,
+            Message = InvoiceMessages.ParsedSuccessfully,
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "hash-map-1",
+            SupplierName = "Mapped Supplier",
+            InvoiceNumber = "INV-MAP-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 150m,
+            Currency = "EUR",
+            SupplierAddressLine = "Street 1",
+            SupplierPostcode = "1234AB",
+            SupplierCity = "Amsterdam",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "NL91ABNA0417164300",
+            SupplierBicCode = "ABNANL2A",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = false,
+            CanCreateSupplier = true
+        });
+
+        var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+        var supplierCreator = new CountingSupplierCreator
+        {
+            ExactSupplierId = "should-not-be-used"
+        };
+
+        var supplierMappingStore = new FakeSupplierMappingStore();
+        var bankAccountMappingStore = new FakeBankAccountMappingStore();
+        var supplierFingerprintBuilder = new SupplierFingerprintBuilder();
+        var bankAccountFingerprintBuilder = new BankAccountFingerprintBuilder();
+
+        var supplierFingerprint = supplierFingerprintBuilder.Build(new InvoiceParseResult
+        {
+            SupplierName = "Mapped Supplier",
+            SupplierPostcode = "1234AB",
+            SupplierCountry = "NL"
+        });
+
+        await supplierMappingStore.SaveAsync(
+            supplierFingerprint,
+            "exact-existing-1",
+            CancellationToken.None);
+
+        var serviceProvider = new ServiceCollection()
+            .AddSingleton(dbContext)
+            .AddSingleton<IUploadedInvoiceStore>(uploadedInvoiceStore)
+            .AddSingleton<IExactPostOutboxWriter>(exactPostOutboxWriter)
+            .AddSingleton<ISupplierCreator>(supplierCreator)
+            .AddSingleton<ISupplierMappingStore>(supplierMappingStore)
+            .AddSingleton<IBankAccountMappingStore>(bankAccountMappingStore)
+            .AddSingleton(supplierFingerprintBuilder)
+            .AddSingleton(bankAccountFingerprintBuilder)
+            .BuildServiceProvider();
+
+        var worker = new TestableSupplierCreateWorker(
+            serviceProvider,
+            NullLogger<SupplierCreateWorker>.Instance);
+
+        await worker.RunOnceAsync(CancellationToken.None);
+
+        var outboxMessage = await dbContext.SupplierCreateOutbox.SingleAsync(x => x.InvoiceId == "inv-map-1");
+        var updatedRecord = await uploadedInvoiceStore.GetByIdAsync("inv-map-1", CancellationToken.None);
+
+        Assert.Equal(0, supplierCreator.CreateCallsCount);
+        Assert.Equal(SupplierCreateOutboxStatuses.Succeeded, outboxMessage.Status);
+        Assert.Equal("exact-existing-1", outboxMessage.CreatedExactSupplierId);
+
+        Assert.NotNull(updatedRecord);
+        Assert.True(updatedRecord!.IsSupplierMatched);
+        Assert.False(updatedRecord.RequiresSupplierReview);
+        Assert.False(updatedRecord.CanCreateSupplier);
+        Assert.Equal("exact-existing-1", updatedRecord.ExactSupplierId);
+        Assert.Equal(InvoiceStatuses.ReadyToPost, updatedRecord.Status);
+
+        Assert.Equal(1, exactPostOutboxWriter.EnqueueCallsCount);
+        Assert.Equal("inv-map-1", exactPostOutboxWriter.LastEnqueuedInvoiceId);
+
+        var bankFingerprint = bankAccountFingerprintBuilder.Build("NL91ABNA0417164300");
+        var bankOwner = await bankAccountMappingStore.FindExactSupplierIdAsync(bankFingerprint, CancellationToken.None);
+
+        Assert.Equal("exact-existing-1", bankOwner);
+    }
+
+    [Fact]
+    public async Task ProcessPendingMessagesAsync_ShouldFail_WhenBankAccountBelongsToAnotherSupplier()
+    {
+        var options = new DbContextOptionsBuilder<InvoiceFlowDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new InvoiceFlowDbContext(options);
+
+        dbContext.SupplierCreateOutbox.Add(new SupplierCreateOutboxEntity
+        {
+            Id = Guid.NewGuid(),
+            InvoiceId = "inv-conflict-1",
+            Status = SupplierCreateOutboxStatuses.Pending,
+            AttemptCount = 0,
+            CreatedAtUtc = DateTime.UtcNow
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "inv-conflict-1",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = "temp/invoice.pdf",
+            Status = InvoiceStatuses.Parsed,
+            Message = InvoiceMessages.ParsedSuccessfully,
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "hash-conflict-1",
+            SupplierName = "Conflict Supplier",
+            InvoiceNumber = "INV-CONFLICT-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 175m,
+            Currency = "EUR",
+            SupplierAddressLine = "Street 2",
+            SupplierPostcode = "9999ZZ",
+            SupplierCity = "Rotterdam",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "NL11TEST0123456789",
+            SupplierBicCode = "TESTNL2A",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = false,
+            CanCreateSupplier = true
+        });
+
+        var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+        var supplierCreator = new CountingSupplierCreator
+        {
+            ExactSupplierId = "should-not-be-used"
+        };
+
+        var supplierMappingStore = new FakeSupplierMappingStore();
+        var bankAccountMappingStore = new FakeBankAccountMappingStore();
+        var supplierFingerprintBuilder = new SupplierFingerprintBuilder();
+        var bankAccountFingerprintBuilder = new BankAccountFingerprintBuilder();
+
+        var supplierFingerprint = supplierFingerprintBuilder.Build(new InvoiceParseResult
+        {
+            SupplierName = "Conflict Supplier",
+            SupplierPostcode = "9999ZZ",
+            SupplierCountry = "NL"
+        });
+
+        await supplierMappingStore.SaveAsync(
+            supplierFingerprint,
+            "exact-supplier-a",
+            CancellationToken.None);
+
+        var bankFingerprint = bankAccountFingerprintBuilder.Build("NL11TEST0123456789");
+
+        await bankAccountMappingStore.SaveAsync(
+            bankFingerprint,
+            "exact-supplier-b",
+            CancellationToken.None);
+
+        var serviceProvider = new ServiceCollection()
+            .AddSingleton(dbContext)
+            .AddSingleton<IUploadedInvoiceStore>(uploadedInvoiceStore)
+            .AddSingleton<IExactPostOutboxWriter>(exactPostOutboxWriter)
+            .AddSingleton<ISupplierCreator>(supplierCreator)
+            .AddSingleton<ISupplierMappingStore>(supplierMappingStore)
+            .AddSingleton<IBankAccountMappingStore>(bankAccountMappingStore)
+            .AddSingleton(supplierFingerprintBuilder)
+            .AddSingleton(bankAccountFingerprintBuilder)
+            .BuildServiceProvider();
+
+        var worker = new TestableSupplierCreateWorker(
+            serviceProvider,
+            NullLogger<SupplierCreateWorker>.Instance);
+
+        await worker.RunOnceAsync(CancellationToken.None);
+
+        var outboxMessage = await dbContext.SupplierCreateOutbox.SingleAsync(x => x.InvoiceId == "inv-conflict-1");
+        var updatedRecord = await uploadedInvoiceStore.GetByIdAsync("inv-conflict-1", CancellationToken.None);
+
+        Assert.Equal(0, supplierCreator.CreateCallsCount);
+        Assert.Equal(SupplierCreateOutboxStatuses.Failed, outboxMessage.Status);
+        Assert.Equal("Bank account is already linked to another supplier.", outboxMessage.LastError);
+        Assert.NotNull(outboxMessage.NextAttemptAtUtc);
+
+        Assert.NotNull(updatedRecord);
+        Assert.False(updatedRecord!.IsSupplierMatched);
+        Assert.True(updatedRecord.CanCreateSupplier);
+        Assert.Null(updatedRecord.ExactSupplierId);
+
+        Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+        Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);
+    }
 }
 
 file sealed class TestableSupplierCreateWorker : SupplierCreateWorker
@@ -423,3 +643,14 @@ file sealed class FakeBankAccountMappingStore : IBankAccountMappingStore
     }
 }
 
+file sealed class CountingSupplierCreator : ISupplierCreator
+{
+    public int CreateCallsCount { get; private set; }
+    public string ExactSupplierId { get; set; } = string.Empty;
+
+    public Task<string> CreateAsync(SupplierCreateRequest request, CancellationToken cancellationToken = default)
+    {
+        CreateCallsCount++;
+        return Task.FromResult(ExactSupplierId);
+    }
+}
