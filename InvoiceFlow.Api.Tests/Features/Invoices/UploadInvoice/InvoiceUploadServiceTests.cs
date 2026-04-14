@@ -585,6 +585,74 @@ public sealed class InvoiceUploadServiceTests
         }
     }
 
+
+    [Fact]
+    public async Task UploadAsync_ShouldCreateSupplier_ThenEnqueueExactPost()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var supplierCreateOutboxWriter = new FakeSupplierCreateOutboxWriter();
+
+            var bankDetailsRiskEvaluator = new FakeBankDetailsRiskEvaluator
+            {
+                Result = new BankDetailsRiskResult
+                {
+                    IsSafe = true
+                }
+            };
+
+            var matcher = new FakeSupplierMatcher
+            {
+                Result = new SupplierMatchResult
+                {
+                    IsMatched = false,
+                    RequiresReview = false,
+                    CanCreateSupplier = true
+                }
+            };
+
+            var service = new InvoiceUploadService(
+                new ParserWithBankDetails(),
+                matcher,
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                supplierCreateOutboxWriter,
+                bankDetailsRiskEvaluator);
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+
+            // supplier creation queued
+            Assert.Equal(1, supplierCreateOutboxWriter.EnqueueCallsCount);
+
+            // NOT posted yet
+            Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            Directory.Delete(tempRoot, true);
+        }
+    }
     private static IFormFile CreatePdfFormFile(byte[] bytes, string fileName)
     {
         var stream = new MemoryStream(bytes);

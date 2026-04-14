@@ -1,5 +1,4 @@
-﻿using InvoiceFlow.Api.Contracts;
-using InvoiceFlow.Api.Features.Exact;
+﻿using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.Idempotency;
@@ -53,7 +52,8 @@ public class SupplierCreateWorker : BackgroundService
 
         var pendingMessages = await dbContext.SupplierCreateOutbox
             .Where(x =>
-                x.Status == SupplierCreateOutboxStatuses.Pending &&
+                (x.Status == SupplierCreateOutboxStatuses.Pending ||
+                 x.Status == SupplierCreateOutboxStatuses.Failed) &&
                 (x.NextAttemptAtUtc == null || x.NextAttemptAtUtc <= DateTime.UtcNow))
             .OrderBy(x => x.CreatedAtUtc)
             .Take(10)
@@ -112,7 +112,8 @@ public class SupplierCreateWorker : BackgroundService
                 }
                 else if (!string.IsNullOrWhiteSpace(bankExactId))
                 {
-                    exactSupplierId = bankExactId;
+                    throw new InvalidOperationException(
+                        "Bank account already exists without a matching supplier fingerprint. Manual review is required.");
                 }
                 else
                 {

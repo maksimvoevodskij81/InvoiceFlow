@@ -217,6 +217,98 @@ public sealed class SupplierCreateWorkerTests
         Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);
         Assert.Equal(0, await dbContext.SupplierCreateOutbox.CountAsync());
     }
+
+    [Fact]
+    public async Task ProcessPendingMessagesAsync_ShouldRetryFailedMessage_WhenNextAttemptAtUtcHasPassed()
+    {
+        var options = new DbContextOptionsBuilder<InvoiceFlowDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .Options;
+
+        await using var dbContext = new InvoiceFlowDbContext(options);
+
+        dbContext.SupplierCreateOutbox.Add(new SupplierCreateOutboxEntity
+        {
+            Id = Guid.NewGuid(),
+            InvoiceId = "inv-retry-1",
+            Status = SupplierCreateOutboxStatuses.Failed,
+            AttemptCount = 1,
+            CreatedAtUtc = DateTime.UtcNow.AddMinutes(-10),
+            LastAttemptAtUtc = DateTime.UtcNow.AddMinutes(-6),
+            NextAttemptAtUtc = DateTime.UtcNow.AddMinutes(-1),
+            LastError = "Previous failure"
+        });
+
+        await dbContext.SaveChangesAsync();
+
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "inv-retry-1",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = "temp/invoice.pdf",
+            Status = InvoiceStatuses.Parsed,
+            Message = InvoiceMessages.ParsedSuccessfully,
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "hash-retry-1",
+            SupplierName = "Retry Supplier",
+            InvoiceNumber = "INV-RETRY-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 300m,
+            Currency = "EUR",
+            SupplierAddressLine = "Retry street 1",
+            SupplierPostcode = "1234AB",
+            SupplierCity = "Amsterdam",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "NL91ABNA0417164300",
+            SupplierBicCode = "ABNANL2A",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = false,
+            CanCreateSupplier = true
+        });
+
+        var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+        var supplierCreator = new FakeSupplierCreator
+        {
+            ExactSupplierId = "exact-retry-1"
+        };
+
+        var serviceProvider = new ServiceCollection()
+            .AddSingleton(dbContext)
+            .AddSingleton<IUploadedInvoiceStore>(uploadedInvoiceStore)
+            .AddSingleton<IExactPostOutboxWriter>(exactPostOutboxWriter)
+            .AddSingleton<ISupplierCreator>(supplierCreator)
+            .AddSingleton<ISupplierMappingStore, FakeSupplierMappingStore>()
+            .AddSingleton<IBankAccountMappingStore, FakeBankAccountMappingStore>()
+            .AddSingleton<SupplierFingerprintBuilder>()
+            .AddSingleton<BankAccountFingerprintBuilder>()
+            .BuildServiceProvider();
+
+        var worker = new TestableSupplierCreateWorker(
+            serviceProvider,
+            NullLogger<SupplierCreateWorker>.Instance);
+
+        await worker.RunOnceAsync(CancellationToken.None);
+
+        var outboxMessage = await dbContext.SupplierCreateOutbox.SingleAsync(x => x.InvoiceId == "inv-retry-1");
+        var updatedRecord = await uploadedInvoiceStore.GetByIdAsync("inv-retry-1", CancellationToken.None);
+
+        Assert.Equal(SupplierCreateOutboxStatuses.Succeeded, outboxMessage.Status);
+        Assert.Equal(2, outboxMessage.AttemptCount);
+        Assert.Equal("exact-retry-1", outboxMessage.CreatedExactSupplierId);
+        Assert.Null(outboxMessage.LastError);
+        Assert.Null(outboxMessage.NextAttemptAtUtc);
+
+        Assert.NotNull(updatedRecord);
+        Assert.True(updatedRecord!.IsSupplierMatched);
+        Assert.False(updatedRecord.RequiresSupplierReview);
+        Assert.False(updatedRecord.CanCreateSupplier);
+        Assert.Equal("exact-retry-1", updatedRecord.ExactSupplierId);
+        Assert.Equal(InvoiceStatuses.ReadyToPost, updatedRecord.Status);
+
+        Assert.Equal(1, exactPostOutboxWriter.EnqueueCallsCount);
+        Assert.Equal("inv-retry-1", exactPostOutboxWriter.LastEnqueuedInvoiceId);
+    }
 }
 
 file sealed class TestableSupplierCreateWorker : SupplierCreateWorker
