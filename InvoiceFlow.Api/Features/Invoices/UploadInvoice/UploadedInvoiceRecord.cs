@@ -52,4 +52,6 @@ public sealed class UploadedInvoiceRecord
     public string? SupplierCountry { get; set; }
     public string? SupplierBankAccount { get; set; }
     public string? SupplierBicCode { get; set; }
+    public bool HasNewBankDetails { get; set; }
+    public string? MatchReasons { get; set; } 
 }

@@ -4,6 +4,7 @@ using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+using InvoiceFlow.Api.Features.Suppliers.Matching;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvoiceFlow.Api.Controllers;
@@ -150,6 +151,8 @@ public sealed class InvoicesController : ControllerBase
             PostedToExactAtUtc = record.PostedToExactAtUtc,
             ExactPostingError = record.ExactPostingError,
             CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            MatchReasons = record.MatchReasons,
         };
 
         return Ok(response);
@@ -193,6 +196,8 @@ public sealed class InvoicesController : ControllerBase
             PostedToExactAtUtc = record.PostedToExactAtUtc,
             ExactPostingError = record.ExactPostingError,
             CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            MatchReasons = record.MatchReasons,
         };
 
         return Ok(response);

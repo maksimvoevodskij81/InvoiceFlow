@@ -2,6 +2,7 @@
 using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
+using InvoiceFlow.Api.Features.Suppliers.Matching;
 using InvoiceFlow.Api.Infrastructure;
 using InvoiceFlow.Api.Tests.Fakes;
 using Microsoft.AspNetCore.Http;
@@ -31,7 +32,8 @@ public sealed class InvoiceUploadServiceTests
                  new FakeExactPostOutboxWriter(),
                  new InvoiceParseResultValidator(),
                  new SupplierCreateValidator(),
-                 new FakeSupplierCreateOutboxWriter());
+                 new FakeSupplierCreateOutboxWriter(),
+                 new FakeBankDetailsRiskEvaluator());
 
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
@@ -102,7 +104,8 @@ public sealed class InvoiceUploadServiceTests
                  new FakeExactPostOutboxWriter(),
                  new InvoiceParseResultValidator(),
                  new SupplierCreateValidator(),
-                 new FakeSupplierCreateOutboxWriter());
+                 new FakeSupplierCreateOutboxWriter(),
+                 new FakeBankDetailsRiskEvaluator());
 
 
             var firstFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
@@ -152,7 +155,8 @@ public sealed class InvoiceUploadServiceTests
                 new FakeExactPostOutboxWriter(),
                 new InvoiceParseResultValidator(),
                 new SupplierCreateValidator(),
-                new FakeSupplierCreateOutboxWriter());
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -211,7 +215,8 @@ public sealed class InvoiceUploadServiceTests
                 new FakeExactPostOutboxWriter(),
                 new InvoiceParseResultValidator(),
                 new SupplierCreateValidator(),
-                new FakeSupplierCreateOutboxWriter());
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -281,7 +286,8 @@ public sealed class InvoiceUploadServiceTests
                 outboxWriter,
                 new InvoiceParseResultValidator(),
                 new SupplierCreateValidator(),
-                new FakeSupplierCreateOutboxWriter());
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -320,7 +326,8 @@ public sealed class InvoiceUploadServiceTests
             new FakeExactPostOutboxWriter(),
             new InvoiceParseResultValidator(),
              new SupplierCreateValidator(),
-             new FakeSupplierCreateOutboxWriter());
+             new FakeSupplierCreateOutboxWriter(),
+             new FakeBankDetailsRiskEvaluator());
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
@@ -346,7 +353,8 @@ public sealed class InvoiceUploadServiceTests
             new FakeExactPostOutboxWriter(),
             new InvoiceParseResultValidator(),
             new SupplierCreateValidator(), 
-            new FakeSupplierCreateOutboxWriter());
+            new FakeSupplierCreateOutboxWriter(),
+            new FakeBankDetailsRiskEvaluator());
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
@@ -371,7 +379,8 @@ public sealed class InvoiceUploadServiceTests
             new FakeExactPostOutboxWriter(),
             new InvoiceParseResultValidator(),
             new SupplierCreateValidator(), 
-            new FakeSupplierCreateOutboxWriter());
+            new FakeSupplierCreateOutboxWriter(),
+            new FakeBankDetailsRiskEvaluator());
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
@@ -406,7 +415,8 @@ public sealed class InvoiceUploadServiceTests
                 exactPostOutboxWriter,
                 new InvoiceParseResultValidator(),
                 new SupplierCreateValidator(), 
-                supplierCreateOutboxWriter);
+                supplierCreateOutboxWriter,
+                new FakeBankDetailsRiskEvaluator());
 
             await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
             IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
@@ -434,6 +444,147 @@ public sealed class InvoiceUploadServiceTests
             Directory.Delete(tempRoot, true);
         }
     }
+
+    [Fact]
+    public async Task UploadAsync_ShouldRequireReview_WhenSupplierIsMatchedButBankDetailsAreNew()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var supplierCreateOutboxWriter = new FakeSupplierCreateOutboxWriter();
+
+            var bankDetailsRiskEvaluator = new FakeBankDetailsRiskEvaluator
+            {
+                Result = new BankDetailsRiskResult
+                {
+                    IsSafe = false,
+                    IsNewBankDetails = true,
+                    HasConflict = false,
+                    Reasons = new List<string>
+                {
+                    "Bank account is new for the matched supplier."
+                }
+                }
+            };
+
+            var service = new InvoiceUploadService(
+                new ParserWithBankDetails(),
+                new FakeSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                supplierCreateOutboxWriter,
+                bankDetailsRiskEvaluator);
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.NotNull(record);
+            Assert.True(record!.IsSupplierMatched);
+            Assert.True(record.RequiresSupplierReview);
+            Assert.True(record.HasNewBankDetails);
+            Assert.Equal(InvoiceStatuses.Parsed, record.Status);
+            Assert.Equal("Supplier matched, but bank details are new and require review.", record.SupplierMatchMessage);
+
+            Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+            Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);
+
+            Assert.Equal(0, supplierCreateOutboxWriter.EnqueueCallsCount);
+            Assert.Null(supplierCreateOutboxWriter.LastEnqueuedInvoiceId);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            Directory.Delete(tempRoot, true);
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldRequireReview_WhenSupplierIsMatchedButBankDetailsConflict()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var supplierCreateOutboxWriter = new FakeSupplierCreateOutboxWriter();
+
+            var bankDetailsRiskEvaluator = new FakeBankDetailsRiskEvaluator
+            {
+                Result = new BankDetailsRiskResult
+                {
+                    IsSafe = false,
+                    IsNewBankDetails = false,
+                    HasConflict = true,
+                    Reasons = new List<string>
+                {
+                    "Bank account is already linked to another supplier."
+                }
+                }
+            };
+
+            var service = new InvoiceUploadService(
+                new ParserWithBankDetails(),
+                new FakeSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                supplierCreateOutboxWriter,
+                bankDetailsRiskEvaluator);
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.NotNull(record);
+            Assert.True(record!.IsSupplierMatched);
+            Assert.True(record.RequiresSupplierReview);
+            Assert.False(record.HasNewBankDetails);
+            Assert.Equal(InvoiceStatuses.Parsed, record.Status);
+            Assert.Equal("Supplier matched, but bank account conflicts with another supplier.", record.SupplierMatchMessage);
+
+            Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+            Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);
+
+            Assert.Equal(0, supplierCreateOutboxWriter.EnqueueCallsCount);
+            Assert.Null(supplierCreateOutboxWriter.LastEnqueuedInvoiceId);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            Directory.Delete(tempRoot, true);
+        }
+    }
+
     private static IFormFile CreatePdfFormFile(byte[] bytes, string fileName)
     {
         var stream = new MemoryStream(bytes);
@@ -563,6 +714,28 @@ file sealed class NotMatchedSupplierMatcher : ISupplierMatcher
             InternalSupplierId = null,
             ExactSupplierId = null,
             Message = "Not matched"
+        });
+    }
+}
+file sealed class ParserWithBankDetails : IInvoiceParser
+{
+    public Task<InvoiceParseResult> ParseAsync(
+        FolderInvoiceFile file,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new InvoiceParseResult
+        {
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            SupplierAddressLine = "Main street 1",
+            SupplierPostcode = "1234AB",
+            SupplierCity = "Amsterdam",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "NL91ABNA0417164300",
+            SupplierBicCode = "ABNANL2A"
         });
     }
 }

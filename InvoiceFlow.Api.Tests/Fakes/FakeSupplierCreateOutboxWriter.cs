@@ -5,6 +5,39 @@ namespace InvoiceFlow.Api.Tests.Fakes;
 public sealed class FakeSupplierCreateOutboxWriter : ISupplierCreateOutboxWriter
 {
     public List<string> EnqueuedInvoiceIds { get; } = new();
+    public List<string> RequeuedInvoiceIds { get; } = new();
+
+    public int EnqueueCallsCount
+    {
+        get
+        {
+            return EnqueuedInvoiceIds.Count;
+        }
+    }
+
+    public int RequeueCallsCount
+    {
+        get
+        {
+            return RequeuedInvoiceIds.Count;
+        }
+    }
+
+    public string? LastEnqueuedInvoiceId
+    {
+        get
+        {
+            return EnqueuedInvoiceIds.LastOrDefault();
+        }
+    }
+
+    public string? LastRequeuedInvoiceId
+    {
+        get
+        {
+            return RequeuedInvoiceIds.LastOrDefault();
+        }
+    }
 
     public Task EnqueueAsync(string invoiceId, CancellationToken cancellationToken = default)
     {
@@ -14,7 +47,7 @@ public sealed class FakeSupplierCreateOutboxWriter : ISupplierCreateOutboxWriter
 
     public Task RequeueAsync(string invoiceId, CancellationToken cancellationToken = default)
     {
-        EnqueuedInvoiceIds.Add(invoiceId);
+        RequeuedInvoiceIds.Add(invoiceId);
         return Task.CompletedTask;
     }
 }

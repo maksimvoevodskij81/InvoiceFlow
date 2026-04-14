@@ -2,6 +2,7 @@
 using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
+using InvoiceFlow.Api.Features.Suppliers.Matching;
 using System.Security.Cryptography;
 
 namespace InvoiceFlow.Api.Features.Invoices.UploadInvoice;
@@ -16,6 +17,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     private readonly InvoiceParseResultValidator _invoiceParseResultValidator;
     private readonly SupplierCreateValidator _supplierCreateValidator;
     private readonly ISupplierCreateOutboxWriter _supplierCreateOutboxWriter;
+    private readonly IBankDetailsRiskEvaluator _bankDetailsRiskEvaluator;
     public InvoiceUploadService(
         IInvoiceParser invoiceParser,
         ISupplierMatcher supplierMatcher,
@@ -24,7 +26,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         IExactPostOutboxWriter exactPostOutboxWriter,
         InvoiceParseResultValidator invoiceParseResultValidator,
         SupplierCreateValidator supplierCreateValidator,
-        ISupplierCreateOutboxWriter supplierCreateOutboxWriter)
+        ISupplierCreateOutboxWriter supplierCreateOutboxWriter,
+        IBankDetailsRiskEvaluator bankDetailsRiskEvaluator)
     {
         _invoiceParser = invoiceParser;
         _supplierMatcher = supplierMatcher;
@@ -34,6 +37,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         _invoiceParseResultValidator = invoiceParseResultValidator;
         _supplierCreateValidator = supplierCreateValidator;
         _supplierCreateOutboxWriter = supplierCreateOutboxWriter;
+        _bankDetailsRiskEvaluator = bankDetailsRiskEvaluator;
     }
 
     public async Task<UploadInvoiceAcceptedResponse> UploadAsync(
@@ -86,6 +90,31 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             }
 
             var supplierMatchResult = await _supplierMatcher.MatchAsync(parseResult, cancellationToken);
+
+            if (supplierMatchResult.IsMatched &&
+                 !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId))
+            {
+                var bankRiskResult = await _bankDetailsRiskEvaluator.EvaluateAsync(
+                    parseResult,
+                    supplierMatchResult.ExactSupplierId,
+                    cancellationToken);
+
+                supplierMatchResult.Reasons.AddRange(bankRiskResult.Reasons);
+
+                if (bankRiskResult.HasConflict)
+                {
+                    supplierMatchResult.RequiresReview = true;
+                    supplierMatchResult.HasNewBankDetails = false;
+                    supplierMatchResult.Message = "Supplier matched, but bank account conflicts with another supplier.";
+                }
+                else if (bankRiskResult.IsNewBankDetails)
+                {
+                    supplierMatchResult.RequiresReview = true;
+                    supplierMatchResult.HasNewBankDetails = true;
+                    supplierMatchResult.Message = "Supplier matched, but bank details are new and require review.";
+                }
+            }
+
             List<string> missingSupplierFields = _supplierCreateValidator.Validate(parseResult);
 
             var canCreateSupplier =
@@ -285,7 +314,11 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             ExactDocumentId = null,
             PostedToExactAtUtc = null,
             ExactPostingError = null,
-            CanCreateSupplier = canCreateSupplier
+            CanCreateSupplier = canCreateSupplier,
+            HasNewBankDetails = supplierMatchResult.HasNewBankDetails,
+            MatchReasons = supplierMatchResult.Reasons.Count == 0
+                            ? null
+                            : string.Join(" | ", supplierMatchResult.Reasons)
         };
     }
 }

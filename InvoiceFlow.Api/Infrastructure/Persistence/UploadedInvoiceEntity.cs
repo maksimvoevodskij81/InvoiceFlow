@@ -51,4 +51,6 @@ public sealed class UploadedInvoiceEntity
     public string? SupplierCountry { get; set; }
     public string? SupplierBankAccount { get; set; }
     public string? SupplierBicCode { get; set; }
+    public bool HasNewBankDetails { get; set; }
+    public List<string> MatchReasons { get; set; } = new();
 }
