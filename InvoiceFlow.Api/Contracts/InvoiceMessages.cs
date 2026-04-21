@@ -11,6 +11,8 @@ public static class InvoiceMessages
     public const string ReadyToPost = "Invoice parsed, validated, and ready to post.";
     public const string SupplierCreatedInExactSuccessfully = "Supplier created in Exact successfully.";
 
+    public const string NeedsReview = "Invoice requires review.";
+
     public static string MissingRequiredFields(IEnumerable<string> missingFields)
     {
         return $"Missing required fields: {string.Join(", ", missingFields)}";

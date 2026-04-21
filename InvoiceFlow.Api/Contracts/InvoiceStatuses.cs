@@ -9,4 +9,5 @@ public static class InvoiceStatuses
     public const string Duplicate = "Duplicate";
     public const string Invalid = "Invalid";
     public const string ReadyToPost = "ReadyToPost";
+    public const string NeedsReview = "NeedsReview";
 }

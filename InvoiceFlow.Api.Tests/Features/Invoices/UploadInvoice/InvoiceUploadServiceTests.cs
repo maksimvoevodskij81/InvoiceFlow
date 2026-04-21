@@ -168,8 +168,8 @@ public sealed class InvoiceUploadServiceTests
             var response = await service.UploadAsync(file, CancellationToken.None);
 
             Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
-            Assert.Equal(InvoiceStatuses.Parsed, response.Status);
-            Assert.Contains("requires supplier review", response.Message);
+            Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
+            Assert.Equal(InvoiceMessages.NeedsReview, response.Message);
 
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
@@ -364,6 +364,8 @@ public sealed class InvoiceUploadServiceTests
 
         Assert.False(record!.IsSupplierMatched);
         Assert.True(record.CanCreateSupplier);
+        Assert.Equal(InvoiceStatuses.Parsed, response.Status);
+        Assert.Equal(InvoiceMessages.ParsedButRequiresSupplierReview, response.Message);
     }
 
     [Fact]
@@ -390,6 +392,8 @@ public sealed class InvoiceUploadServiceTests
 
         Assert.False(record!.IsSupplierMatched);
         Assert.False(record.CanCreateSupplier);
+        Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
+        Assert.Equal(InvoiceMessages.NeedsReview, response.Message);
     }
 
     [Fact]
@@ -499,8 +503,11 @@ public sealed class InvoiceUploadServiceTests
             Assert.True(record!.IsSupplierMatched);
             Assert.True(record.RequiresSupplierReview);
             Assert.True(record.HasNewBankDetails);
-            Assert.Equal(InvoiceStatuses.Parsed, record.Status);
+            Assert.Equal(InvoiceStatuses.NeedsReview, record.Status);
             Assert.Equal("Supplier matched, but bank details are new and require review.", record.SupplierMatchMessage);
+
+            Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
+            Assert.Equal(InvoiceMessages.NeedsReview, response.Message);
 
             Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
             Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);
@@ -569,8 +576,11 @@ public sealed class InvoiceUploadServiceTests
             Assert.True(record!.IsSupplierMatched);
             Assert.True(record.RequiresSupplierReview);
             Assert.False(record.HasNewBankDetails);
-            Assert.Equal(InvoiceStatuses.Parsed, record.Status);
+            Assert.Equal(InvoiceStatuses.NeedsReview, record.Status);
             Assert.Equal("Supplier matched, but bank account conflicts with another supplier.", record.SupplierMatchMessage);
+
+            Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
+            Assert.Equal(InvoiceMessages.NeedsReview, response.Message);
 
             Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
             Assert.Null(exactPostOutboxWriter.LastEnqueuedInvoiceId);

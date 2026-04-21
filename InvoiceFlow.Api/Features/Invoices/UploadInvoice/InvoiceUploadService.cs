@@ -284,17 +284,34 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
 
         bool isReadyToPost = IsReadyToPost(supplierMatchResult);
 
+        bool needsReview = supplierMatchResult.RequiresReview || (!supplierMatchResult.IsMatched && !canCreateSupplier);
+
+        string status;
+        string message;
+
+        if (isReadyToPost)
+        {
+            status = InvoiceStatuses.ReadyToPost;
+            message = InvoiceMessages.ReadyToPost;
+        }
+        else if (needsReview)
+        {
+            status = InvoiceStatuses.NeedsReview;
+            message = InvoiceMessages.NeedsReview;
+        }
+        else
+        {
+            status = InvoiceStatuses.Parsed;
+            message = InvoiceMessages.ParsedButRequiresSupplierReview;
+        }
+
         return new UploadedInvoiceRecord
         {
             InvoiceId = processingRecord.InvoiceId,
             OriginalFileName = processingRecord.OriginalFileName,
             StoredFilePath = processingRecord.StoredFilePath,
-            Status = isReadyToPost
-                ? InvoiceStatuses.ReadyToPost
-                : InvoiceStatuses.Parsed,
-            Message = isReadyToPost
-                ? InvoiceMessages.ReadyToPost
-                : InvoiceMessages.ParsedButRequiresSupplierReview,
+            Status = status,
+            Message = message,
             CreatedAtUtc = processingRecord.CreatedAtUtc,
             FileHash = processingRecord.FileHash,
             SupplierName = parseResult.SupplierName,
