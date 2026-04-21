@@ -53,5 +53,5 @@ public sealed class UploadedInvoiceRecord
     public string? SupplierBankAccount { get; set; }
     public string? SupplierBicCode { get; set; }
     public bool HasNewBankDetails { get; set; }
-    public string? MatchReasons { get; set; } 
+    public List<string> MatchReasons { get; set; } = new(); 
 }

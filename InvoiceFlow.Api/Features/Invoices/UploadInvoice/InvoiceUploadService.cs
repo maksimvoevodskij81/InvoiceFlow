@@ -333,9 +333,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             ExactPostingError = null,
             CanCreateSupplier = canCreateSupplier,
             HasNewBankDetails = supplierMatchResult.HasNewBankDetails,
-            MatchReasons = supplierMatchResult.Reasons.Count == 0
-                            ? null
-                            : string.Join(" | ", supplierMatchResult.Reasons)
+            MatchReasons = supplierMatchResult.Reasons
         };
     }
 }

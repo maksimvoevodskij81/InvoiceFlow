@@ -1,7 +1,7 @@
 ﻿using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
 using InvoiceFlow.Api.Features.Suppliers.Idempotency;
 using Microsoft.EntityFrameworkCore;
-
+using System.Text.Json;
 namespace InvoiceFlow.Api.Infrastructure.Persistence;
 
 public sealed class InvoiceFlowDbContext : DbContext
@@ -76,6 +76,12 @@ public sealed class InvoiceFlowDbContext : DbContext
 
         uploadedInvoice.Property(x => x.ExactPostingError)
             .HasMaxLength(1024);
+
+        uploadedInvoice.Property(x => x.MatchReasons)
+     .HasConversion(
+         value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
+         value => JsonSerializer.Deserialize<List<string>>(value, (JsonSerializerOptions?)null) ?? new List<string>())
+     .HasColumnType("nvarchar(max)");
 
         var exactPostOutbox = modelBuilder.Entity<ExactPostOutboxEntity>();
 

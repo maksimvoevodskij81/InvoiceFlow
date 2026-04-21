@@ -43,5 +43,5 @@ public sealed class GetInvoiceDetailsResponse
 
     public bool CanCreateSupplier {  get; set; }
     public bool HasNewBankDetails { get; set; }
-    public string? MatchReasons { get; set; } 
+    public List<string> MatchReasons { get; set; } = new();
 }
