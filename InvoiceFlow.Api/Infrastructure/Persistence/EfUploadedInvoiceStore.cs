@@ -1,4 +1,4 @@
-﻿using InvoiceFlow.Api.Contracts;
+using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using Microsoft.EntityFrameworkCore;
@@ -135,7 +135,16 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             ExactPostingStatus = record.ExactPostingStatus,
             ExactDocumentId = record.ExactDocumentId,
             PostedToExactAtUtc = record.PostedToExactAtUtc,
-            ExactPostingError = record.ExactPostingError
+            ExactPostingError = record.ExactPostingError,
+            CanCreateSupplier = record.CanCreateSupplier,
+            SupplierAddressLine = record.SupplierAddressLine,
+            SupplierPostcode = record.SupplierPostcode,
+            SupplierCity = record.SupplierCity,
+            SupplierCountry = record.SupplierCountry,
+            SupplierBankAccount = record.SupplierBankAccount,
+            SupplierBicCode = record.SupplierBicCode,
+            HasNewBankDetails = record.HasNewBankDetails,
+            MatchReasons = record.MatchReasons
         };
     }
 
@@ -164,7 +173,16 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             ExactPostingStatus = entity.ExactPostingStatus,
             ExactDocumentId = entity.ExactDocumentId,
             PostedToExactAtUtc = entity.PostedToExactAtUtc,
-            ExactPostingError = entity.ExactPostingError
+            ExactPostingError = entity.ExactPostingError,
+            CanCreateSupplier = entity.CanCreateSupplier,
+            SupplierAddressLine = entity.SupplierAddressLine,
+            SupplierPostcode = entity.SupplierPostcode,
+            SupplierCity = entity.SupplierCity,
+            SupplierCountry = entity.SupplierCountry,
+            SupplierBankAccount = entity.SupplierBankAccount,
+            SupplierBicCode = entity.SupplierBicCode,
+            HasNewBankDetails = entity.HasNewBankDetails,
+            MatchReasons = entity.MatchReasons
         };
     }
 
@@ -191,5 +209,14 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
         entity.ExactDocumentId = record.ExactDocumentId;
         entity.PostedToExactAtUtc = record.PostedToExactAtUtc;
         entity.ExactPostingError = record.ExactPostingError;
+        entity.CanCreateSupplier = record.CanCreateSupplier;
+        entity.SupplierAddressLine = record.SupplierAddressLine;
+        entity.SupplierPostcode = record.SupplierPostcode;
+        entity.SupplierCity = record.SupplierCity;
+        entity.SupplierCountry = record.SupplierCountry;
+        entity.SupplierBankAccount = record.SupplierBankAccount;
+        entity.SupplierBicCode = record.SupplierBicCode;
+        entity.HasNewBankDetails = record.HasNewBankDetails;
+        entity.MatchReasons = record.MatchReasons;
     }
 }

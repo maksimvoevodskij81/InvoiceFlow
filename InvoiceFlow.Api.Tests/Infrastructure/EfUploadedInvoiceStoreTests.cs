@@ -63,6 +63,81 @@ public sealed class EfUploadedInvoiceStoreTests
         Assert.Equal("Parsing failed.", savedRecord.Message);
     }
 
+    [Fact]
+    public async Task SaveAsync_ShouldPersistSupplierCreationFields()
+    {
+        await using var dbContext = CreateDbContext();
+        var store = new EfUploadedInvoiceStore(dbContext);
+
+        var record = new UploadedInvoiceRecord
+        {
+            InvoiceId = "invoice-supplier-test",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.NeedsReview,
+            Message = InvoiceMessages.NeedsReview,
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "hash-supplier",
+            SupplierName = "New Supplier Inc",
+            InvoiceNumber = "INV-002",
+            InvoiceDate = new DateOnly(2026, 4, 15),
+            TotalAmount = 500.00m,
+            Currency = "EUR",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = null,
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            SupplierMatchMessage = null,
+            ExactPostingStatus = null,
+            ExactDocumentId = null,
+            PostedToExactAtUtc = null,
+            ExactPostingError = null,
+            CanCreateSupplier = true,
+            SupplierAddressLine = "123 Business Street",
+            SupplierPostcode = "12345",
+            SupplierCity = "Amsterdam",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "NL91ABNA0417164300",
+            SupplierBicCode = "ABNANL2A",
+            HasNewBankDetails = true,
+            MatchReasons = new List<string>
+        {
+            "Bank account match",
+            "Name similarity"
+        }
+        };
+
+        await store.SaveAsync(record, CancellationToken.None);
+
+        var savedRecord = await store.GetByIdAsync("invoice-supplier-test", CancellationToken.None);
+
+        Assert.NotNull(savedRecord);
+        Assert.Equal("invoice-supplier-test", savedRecord.InvoiceId);
+        Assert.Equal("invoice.pdf", savedRecord.OriginalFileName);
+        Assert.Equal(InvoiceStatuses.NeedsReview, savedRecord.Status);
+        Assert.Equal(InvoiceMessages.NeedsReview, savedRecord.Message);
+        Assert.Equal("New Supplier Inc", savedRecord.SupplierName);
+        Assert.Equal("INV-002", savedRecord.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 4, 15), savedRecord.InvoiceDate);
+        Assert.Equal(500.00m, savedRecord.TotalAmount);
+        Assert.Equal("EUR", savedRecord.Currency);
+        Assert.False(savedRecord.IsSupplierMatched);
+        Assert.True(savedRecord.RequiresSupplierReview);
+        Assert.True(savedRecord.CanCreateSupplier);
+        Assert.Equal("123 Business Street", savedRecord.SupplierAddressLine);
+        Assert.Equal("12345", savedRecord.SupplierPostcode);
+        Assert.Equal("Amsterdam", savedRecord.SupplierCity);
+        Assert.Equal("NL", savedRecord.SupplierCountry);
+        Assert.Equal("NL91ABNA0417164300", savedRecord.SupplierBankAccount);
+        Assert.Equal("ABNANL2A", savedRecord.SupplierBicCode);
+        Assert.True(savedRecord.HasNewBankDetails);
+        Assert.NotNull(savedRecord.MatchReasons);
+        Assert.Equal(2, savedRecord.MatchReasons.Count);
+        Assert.Contains("Bank account match", savedRecord.MatchReasons);
+        Assert.Contains("Name similarity", savedRecord.MatchReasons);
+    }
+
     private static InvoiceFlowDbContext CreateDbContext()
     {
         var options = new DbContextOptionsBuilder<InvoiceFlowDbContext>()
@@ -97,7 +172,20 @@ public sealed class EfUploadedInvoiceStoreTests
             SupplierMatchedBy = SupplierMatchSources.BankAccount,
             InternalSupplierId = "internal-supplier-001",
             ExactSupplierId = "exact-supplier-001",
-            SupplierMatchMessage = "Supplier matched successfully."
+            SupplierMatchMessage = "Supplier matched successfully.",
+            ExactPostingStatus = null,
+            ExactDocumentId = null,
+            PostedToExactAtUtc = null,
+            ExactPostingError = null,
+            CanCreateSupplier = false,
+            SupplierAddressLine = null,
+            SupplierPostcode = null,
+            SupplierCity = null,
+            SupplierCountry = null,
+            SupplierBankAccount = null,
+            SupplierBicCode = null,
+            HasNewBankDetails = false,
+            MatchReasons = new()
         };
     }
 }
