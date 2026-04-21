@@ -3,6 +3,7 @@ using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
+using InvoiceFlow.Api.Features.Invoices.Review;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.Matching;
 using Microsoft.AspNetCore.Mvc;
@@ -19,6 +20,7 @@ public sealed class InvoicesController : ControllerBase
     private readonly IInvoiceUploadService _invoiceUploadService;
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
     private readonly InvoiceParseResultValidator _invoiceParseResultValidator;
+    private readonly IInvoiceReviewService _invoiceReviewService;
 
     private const long MaxUploadFileSizeInBytes = 10 * 1024 * 1024;
 
@@ -38,7 +40,8 @@ public sealed class InvoicesController : ControllerBase
         ISupplierMatcher supplierMatcher,
         IInvoiceUploadService invoiceUploadService,
         IUploadedInvoiceStore uploadedInvoiceStore,
-        InvoiceParseResultValidator invoiceParseResultValidator)
+        InvoiceParseResultValidator invoiceParseResultValidator,
+        IInvoiceReviewService invoiceReviewService)
     {
         _invoiceFolderReader = invoiceFolderReader;
         _invoiceParser = invoiceParser;
@@ -46,6 +49,7 @@ public sealed class InvoicesController : ControllerBase
         _invoiceUploadService = invoiceUploadService;
         _uploadedInvoiceStore = uploadedInvoiceStore;
         _invoiceParseResultValidator = invoiceParseResultValidator;
+        _invoiceReviewService = invoiceReviewService;
     }
 
     [HttpPost("upload")]
@@ -201,6 +205,29 @@ public sealed class InvoicesController : ControllerBase
         };
 
         return Ok(response);
+    }
+
+    [HttpPost("{id}/review/approve")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ApproveReview(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _invoiceReviewService.ApproveAsync(id, cancellationToken);
+            return Ok();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest();
+        }
     }
 
     private static ImportInvoicesFromFolderResponse CreateImportInvoicesFromFolderResponse(

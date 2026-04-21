@@ -30,7 +30,7 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
 
         if (invoice is null)
         {
-            throw new InvalidOperationException($"Invoice with id '{invoiceId}' was not found.");
+            throw new KeyNotFoundException($"Invoice with id '{invoiceId}' was not found.");
         }
 
         if (invoice.Status != InvoiceStatuses.NeedsReview)
