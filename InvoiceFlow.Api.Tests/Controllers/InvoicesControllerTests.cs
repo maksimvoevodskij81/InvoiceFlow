@@ -255,6 +255,8 @@ public sealed class InvoicesControllerTests
             Status = InvoiceStatuses.Parsed,
             Message = "Invoice parsed successfully.",
             CreatedAtUtc = DateTime.UtcNow,
+            ReviewedAtUtc = DateTime.UtcNow,
+            ReviewDecision = ReviewDecisions.Rejected,
             SupplierName = "Demo Supplier",
             InvoiceNumber = "INV-001",
             InvoiceDate = new DateOnly(2026, 4, 1),
@@ -291,6 +293,8 @@ public sealed class InvoicesControllerTests
         Assert.True(response.ReviewSummary.CanCreateSupplier);
         Assert.True(response.ReviewSummary.HasNewBankDetails);
         Assert.Equal(new[] { "Reason1", "Reason2" }, response.ReviewSummary.Reasons);
+        Assert.Equal(ReviewDecisions.Rejected, response.ReviewSummary.ReviewDecision);
+        Assert.NotNull(response.ReviewSummary.ReviewedAtUtc);
         Assert.Equal("Invoice parsed successfully.", response.ReviewSummary.CurrentDecisionMessage);
     }
 
@@ -497,6 +501,8 @@ public sealed class InvoicesControllerTests
             Status = InvoiceStatuses.Parsed,
             Message = "Invoice parsed successfully.",
             CreatedAtUtc = DateTime.UtcNow,
+            ReviewedAtUtc = DateTime.UtcNow,
+            ReviewDecision = ReviewDecisions.Approved,
             FileHash = "test-hash-details-123",
             SupplierName = "Demo Supplier",
             InvoiceNumber = "INV-001",
@@ -533,6 +539,8 @@ public sealed class InvoicesControllerTests
         Assert.True(response.ReviewSummary.CanCreateSupplier);
         Assert.True(response.ReviewSummary.HasNewBankDetails);
         Assert.Equal(new[] { "Reason1", "Reason2" }, response.ReviewSummary.Reasons);
+        Assert.Equal(ReviewDecisions.Approved, response.ReviewSummary.ReviewDecision);
+        Assert.NotNull(response.ReviewSummary.ReviewedAtUtc);
         Assert.Equal("Invoice parsed successfully.", response.ReviewSummary.CurrentDecisionMessage);
     }
 

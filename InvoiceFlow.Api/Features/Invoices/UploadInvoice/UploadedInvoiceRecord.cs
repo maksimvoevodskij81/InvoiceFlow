@@ -12,6 +12,10 @@ public sealed class UploadedInvoiceRecord
 
     public string? Message { get; set; }
 
+    public DateTime? ReviewedAtUtc { get; set; }
+
+    public string? ReviewDecision { get; set; }
+
     public DateTime CreatedAtUtc { get; init; }
 
     public required string FileHash { get; init; }

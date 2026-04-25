@@ -136,6 +136,8 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             ExactDocumentId = record.ExactDocumentId,
             PostedToExactAtUtc = record.PostedToExactAtUtc,
             ExactPostingError = record.ExactPostingError,
+            ReviewedAtUtc = record.ReviewedAtUtc,
+            ReviewDecision = record.ReviewDecision,
             CanCreateSupplier = record.CanCreateSupplier,
             SupplierAddressLine = record.SupplierAddressLine,
             SupplierPostcode = record.SupplierPostcode,
@@ -174,6 +176,8 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             ExactDocumentId = entity.ExactDocumentId,
             PostedToExactAtUtc = entity.PostedToExactAtUtc,
             ExactPostingError = entity.ExactPostingError,
+            ReviewedAtUtc = entity.ReviewedAtUtc,
+            ReviewDecision = entity.ReviewDecision,
             CanCreateSupplier = entity.CanCreateSupplier,
             SupplierAddressLine = entity.SupplierAddressLine,
             SupplierPostcode = entity.SupplierPostcode,
@@ -209,6 +213,8 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
         entity.ExactDocumentId = record.ExactDocumentId;
         entity.PostedToExactAtUtc = record.PostedToExactAtUtc;
         entity.ExactPostingError = record.ExactPostingError;
+        entity.ReviewedAtUtc = record.ReviewedAtUtc;
+        entity.ReviewDecision = record.ReviewDecision;
         entity.CanCreateSupplier = record.CanCreateSupplier;
         entity.SupplierAddressLine = record.SupplierAddressLine;
         entity.SupplierPostcode = record.SupplierPostcode;

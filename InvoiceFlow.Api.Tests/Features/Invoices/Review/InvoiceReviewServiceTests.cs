@@ -180,6 +180,129 @@ public sealed class InvoiceReviewServiceTests
     }
 
     [Fact]
+    public async Task ApproveAsync_ShouldSetReviewAuditFields()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+        var supplierCreateOutboxWriter = new FakeSupplierCreateOutboxWriter();
+
+        var service = new InvoiceReviewService(
+            uploadedInvoiceStore,
+            exactPostOutboxWriter,
+            supplierCreateOutboxWriter);
+
+        var invoice = new UploadedInvoiceRecord
+        {
+            InvoiceId = "invoice-8",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = "path",
+            Status = InvoiceStatuses.NeedsReview,
+            Message = InvoiceMessages.NeedsReview,
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "hash",
+            SupplierName = "Supplier",
+            InvoiceNumber = "INV-008",
+            InvoiceDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            TotalAmount = 800.00m,
+            Currency = "EUR",
+            IsSupplierMatched = true,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = "Manual",
+            InternalSupplierId = "internal-8",
+            ExactSupplierId = "exact-8",
+            SupplierMatchMessage = "Matched",
+            CanCreateSupplier = false,
+            SupplierAddressLine = "Address",
+            SupplierPostcode = "12345",
+            SupplierCity = "City",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "IBAN",
+            SupplierBicCode = "BIC",
+            HasNewBankDetails = true,
+            MatchReasons = new() { "Reason1" }
+        };
+
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        var beforeReview = DateTime.UtcNow;
+        await service.ApproveAsync("invoice-8", CancellationToken.None);
+        var afterReview = DateTime.UtcNow;
+
+        var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-8", CancellationToken.None);
+
+        Assert.NotNull(updatedInvoice);
+        Assert.Equal(InvoiceStatuses.ReadyToPost, updatedInvoice.Status);
+        Assert.Equal(InvoiceMessages.ReadyToPost, updatedInvoice.Message);
+        Assert.Equal(ReviewDecisions.Approved, updatedInvoice.ReviewDecision);
+        Assert.NotNull(updatedInvoice.ReviewedAtUtc);
+        Assert.True(updatedInvoice.ReviewedAtUtc.Value >= beforeReview);
+        Assert.True(updatedInvoice.ReviewedAtUtc.Value <= afterReview);
+        Assert.Equal(1, exactPostOutboxWriter.EnqueueCallsCount);
+        Assert.Equal("invoice-8", exactPostOutboxWriter.LastEnqueuedInvoiceId);
+        Assert.Equal(0, supplierCreateOutboxWriter.EnqueueCallsCount);
+    }
+
+    [Fact]
+    public async Task RejectAsync_ShouldSetReviewAuditFields()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+        var supplierCreateOutboxWriter = new FakeSupplierCreateOutboxWriter();
+
+        var service = new InvoiceReviewService(
+            uploadedInvoiceStore,
+            exactPostOutboxWriter,
+            supplierCreateOutboxWriter);
+
+        var invoice = new UploadedInvoiceRecord
+        {
+            InvoiceId = "invoice-9",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = "path",
+            Status = InvoiceStatuses.NeedsReview,
+            Message = InvoiceMessages.NeedsReview,
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "hash",
+            SupplierName = "Supplier",
+            InvoiceNumber = "INV-009",
+            InvoiceDate = DateOnly.FromDateTime(DateTime.UtcNow),
+            TotalAmount = 900.00m,
+            Currency = "EUR",
+            IsSupplierMatched = true,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = "Manual",
+            InternalSupplierId = "internal-9",
+            ExactSupplierId = "exact-9",
+            SupplierMatchMessage = "Matched",
+            CanCreateSupplier = false,
+            SupplierAddressLine = "Address",
+            SupplierPostcode = "12345",
+            SupplierCity = "City",
+            SupplierCountry = "NL",
+            SupplierBankAccount = "IBAN",
+            SupplierBicCode = "BIC",
+            HasNewBankDetails = true,
+            MatchReasons = new() { "Reason1" }
+        };
+
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        var beforeReview = DateTime.UtcNow;
+        await service.RejectAsync("invoice-9", CancellationToken.None);
+        var afterReview = DateTime.UtcNow;
+
+        var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-9", CancellationToken.None);
+
+        Assert.NotNull(updatedInvoice);
+        Assert.Equal(InvoiceStatuses.NeedsReview, updatedInvoice.Status);
+        Assert.Equal(InvoiceMessages.ReviewRejected, updatedInvoice.Message);
+        Assert.Equal(ReviewDecisions.Rejected, updatedInvoice.ReviewDecision);
+        Assert.NotNull(updatedInvoice.ReviewedAtUtc);
+        Assert.True(updatedInvoice.ReviewedAtUtc.Value >= beforeReview);
+        Assert.True(updatedInvoice.ReviewedAtUtc.Value <= afterReview);
+    }
+
+    [Fact]
     public async Task RejectAsync_ShouldKeepNeedsReview_WhenInvoiceReviewIsRejected()
     {
         var uploadedInvoiceStore = new FakeUploadedInvoiceStore();

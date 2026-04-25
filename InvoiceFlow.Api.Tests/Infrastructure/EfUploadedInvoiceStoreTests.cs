@@ -32,6 +32,31 @@ public sealed class EfUploadedInvoiceStoreTests
     }
 
     [Fact]
+    public async Task SaveAsync_ShouldPersistReviewAuditFields()
+    {
+        await using var dbContext = CreateDbContext();
+        var store = new EfUploadedInvoiceStore(dbContext);
+
+        var reviewTimestamp = DateTime.UtcNow;
+        var record = CreateRecord(
+            invoiceId: "invoice-review-1",
+            fileHash: "hash-review-1",
+            status: InvoiceStatuses.NeedsReview,
+            message: InvoiceMessages.NeedsReview);
+
+        record.ReviewedAtUtc = reviewTimestamp;
+        record.ReviewDecision = ReviewDecisions.Rejected;
+
+        await store.SaveAsync(record, CancellationToken.None);
+
+        var savedRecord = await store.GetByIdAsync("invoice-review-1", CancellationToken.None);
+
+        Assert.NotNull(savedRecord);
+        Assert.Equal(reviewTimestamp, savedRecord.ReviewedAtUtc);
+        Assert.Equal(ReviewDecisions.Rejected, savedRecord.ReviewDecision);
+    }
+
+    [Fact]
     public async Task GetByFileHashAsync_ShouldReturnMatchingRecord()
     {
         await using var dbContext = CreateDbContext();

@@ -42,6 +42,9 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         invoice.HasNewBankDetails = false;
         invoice.MatchReasons = new();
 
+        invoice.ReviewedAtUtc = DateTime.UtcNow;
+        invoice.ReviewDecision = ReviewDecisions.Approved;
+
         if (!string.IsNullOrWhiteSpace(invoice.ExactSupplierId))
         {
             invoice.Status = InvoiceStatuses.ReadyToPost;
@@ -81,6 +84,8 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         }
 
         invoice.Message = InvoiceMessages.ReviewRejected;
+        invoice.ReviewedAtUtc = DateTime.UtcNow;
+        invoice.ReviewDecision = ReviewDecisions.Rejected;
 
         await _uploadedInvoiceStore.SaveAsync(invoice, cancellationToken);
     }

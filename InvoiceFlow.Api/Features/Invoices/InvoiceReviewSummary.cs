@@ -10,5 +10,9 @@ public sealed class InvoiceReviewSummary
 
     public List<string> Reasons { get; set; } = new();
 
+    public DateTime? ReviewedAtUtc { get; set; }
+
+    public string? ReviewDecision { get; set; }
+
     public string? CurrentDecisionMessage { get; set; }
 }
