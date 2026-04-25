@@ -16,6 +16,8 @@ public sealed class UploadedInvoiceRecord
 
     public string? ReviewDecision { get; set; }
 
+    public string? ReviewComment { get; set; }
+
     public DateTime CreatedAtUtc { get; init; }
 
     public required string FileHash { get; init; }

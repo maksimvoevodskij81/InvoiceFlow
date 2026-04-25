@@ -299,6 +299,57 @@ public sealed class InvoicesControllerTests
     }
 
     [Fact]
+    public async Task GetStatus_ShouldReturnReviewComment()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "review-comment-status-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            ReviewedAtUtc = DateTime.UtcNow,
+            ReviewDecision = ReviewDecisions.Approved,
+            ReviewComment = "Looks good.",
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = "Name",
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            SupplierMatchMessage = "Review required.",
+            FileHash = "test-hash-123",
+            CanCreateSupplier = true,
+            HasNewBankDetails = true,
+            MatchReasons = new() { "Reason1", "Reason2" }
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetStatus("review-comment-status-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceStatusResponse>(okResult.Value);
+
+        Assert.NotNull(response.ReviewSummary);
+        Assert.Equal("Looks good.", response.ReviewSummary.ReviewComment);
+    }
+
+    [Fact]
     public async Task GetStatus_ShouldReturnNotFound_WhenInvoiceDoesNotExist()
     {
         var controller = new InvoicesController(
@@ -545,6 +596,57 @@ public sealed class InvoicesControllerTests
     }
 
     [Fact]
+    public async Task GetById_ShouldReturnReviewComment()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "review-comment-details-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            ReviewedAtUtc = DateTime.UtcNow,
+            ReviewDecision = ReviewDecisions.Rejected,
+            ReviewComment = "Customer requested more detail.",
+            FileHash = "test-hash-details-123",
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = "Name",
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            SupplierMatchMessage = "Review required.",
+            CanCreateSupplier = true,
+            HasNewBankDetails = true,
+            MatchReasons = new() { "Reason1", "Reason2" }
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("review-comment-details-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.NotNull(response.ReviewSummary);
+        Assert.Equal("Customer requested more detail.", response.ReviewSummary.ReviewComment);
+    }
+
+    [Fact]
     public async Task GetById_ShouldReturnNotFound_WhenInvoiceDoesNotExist()
     {
         var controller = new InvoicesController(
@@ -559,6 +661,54 @@ public sealed class InvoicesControllerTests
         var result = await controller.GetById("missing-details-id", CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task ApproveReview_ShouldPassCommentToService()
+    {
+        var fakeReviewService = new FakeInvoiceReviewService();
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            fakeReviewService);
+
+        var request = new ReviewDecisionRequest
+        {
+            Comment = "Approving with no issues."
+        };
+
+        var result = await controller.ApproveReview("approve-id", request, CancellationToken.None);
+
+        Assert.IsType<OkResult>(result);
+        Assert.Equal("Approving with no issues.", fakeReviewService.LastApprovedReviewComment);
+    }
+
+    [Fact]
+    public async Task RejectReview_ShouldPassCommentToService()
+    {
+        var fakeReviewService = new FakeInvoiceReviewService();
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            fakeReviewService);
+
+        var request = new ReviewDecisionRequest
+        {
+            Comment = "Rejected due to missing supplier details."
+        };
+
+        var result = await controller.RejectReview("reject-id", request, CancellationToken.None);
+
+        Assert.IsType<OkResult>(result);
+        Assert.Equal("Rejected due to missing supplier details.", fakeReviewService.LastRejectedReviewComment);
     }
 
     [Fact]
@@ -711,7 +861,7 @@ public sealed class InvoicesControllerTests
             new InvoiceParseResultValidator(),
             reviewService);
 
-        var result = await controller.ApproveReview("invoice-123", CancellationToken.None);
+        var result = await controller.ApproveReview("invoice-123", null, CancellationToken.None);
 
         Assert.IsType<OkResult>(result);
         Assert.Equal(1, reviewService.ApproveCallsCount);
@@ -735,7 +885,7 @@ public sealed class InvoicesControllerTests
             new InvoiceParseResultValidator(),
             reviewService);
 
-        var result = await controller.ApproveReview("missing-invoice", CancellationToken.None);
+        var result = await controller.ApproveReview("missing-invoice", null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -757,7 +907,7 @@ public sealed class InvoicesControllerTests
             new InvoiceParseResultValidator(),
             reviewService);
 
-        var result = await controller.ApproveReview("invalid-invoice", CancellationToken.None);
+        var result = await controller.ApproveReview("invalid-invoice", null, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
     }
@@ -776,7 +926,7 @@ public sealed class InvoicesControllerTests
             new InvoiceParseResultValidator(),
             reviewService);
 
-        var result = await controller.RejectReview("invoice-123", CancellationToken.None);
+        var result = await controller.RejectReview("invoice-123", null, CancellationToken.None);
 
         Assert.IsType<OkResult>(result);
         Assert.Equal(1, reviewService.RejectCallsCount);
@@ -800,7 +950,7 @@ public sealed class InvoicesControllerTests
             new InvoiceParseResultValidator(),
             reviewService);
 
-        var result = await controller.RejectReview("missing-invoice", CancellationToken.None);
+        var result = await controller.RejectReview("missing-invoice", null, CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -822,7 +972,7 @@ public sealed class InvoicesControllerTests
             new InvoiceParseResultValidator(),
             reviewService);
 
-        var result = await controller.RejectReview("invalid-invoice", CancellationToken.None);
+        var result = await controller.RejectReview("invalid-invoice", null, CancellationToken.None);
 
         Assert.IsType<BadRequestResult>(result);
     }

@@ -57,6 +57,29 @@ public sealed class EfUploadedInvoiceStoreTests
     }
 
     [Fact]
+    public async Task SaveAsync_ShouldPersistReviewComment()
+    {
+        await using var dbContext = CreateDbContext();
+        var store = new EfUploadedInvoiceStore(dbContext);
+
+        var reviewComment = "Reviewer noted a missing tax number.";
+        var record = CreateRecord(
+            invoiceId: "invoice-review-comment-1",
+            fileHash: "hash-review-comment-1",
+            status: InvoiceStatuses.NeedsReview,
+            message: InvoiceMessages.NeedsReview);
+
+        record.ReviewComment = reviewComment;
+
+        await store.SaveAsync(record, CancellationToken.None);
+
+        var savedRecord = await store.GetByIdAsync("invoice-review-comment-1", CancellationToken.None);
+
+        Assert.NotNull(savedRecord);
+        Assert.Equal(reviewComment, savedRecord.ReviewComment);
+    }
+
+    [Fact]
     public async Task GetByFileHashAsync_ShouldReturnMatchingRecord()
     {
         await using var dbContext = CreateDbContext();

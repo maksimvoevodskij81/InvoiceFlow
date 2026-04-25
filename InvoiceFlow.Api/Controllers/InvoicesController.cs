@@ -165,6 +165,7 @@ public sealed class InvoicesController : ControllerBase
                 Reasons = record.MatchReasons,
                 ReviewedAtUtc = record.ReviewedAtUtc,
                 ReviewDecision = record.ReviewDecision,
+                ReviewComment = record.ReviewComment,
                 CurrentDecisionMessage = record.Message
             }
         };
@@ -220,6 +221,7 @@ public sealed class InvoicesController : ControllerBase
                 Reasons = record.MatchReasons,
                 ReviewedAtUtc = record.ReviewedAtUtc,
                 ReviewDecision = record.ReviewDecision,
+                ReviewComment = record.ReviewComment,
                 CurrentDecisionMessage = record.Message
             }
         };
@@ -233,11 +235,12 @@ public sealed class InvoicesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ApproveReview(
         string id,
+        [FromBody] ReviewDecisionRequest? request,
         CancellationToken cancellationToken)
     {
         try
         {
-            await _invoiceReviewService.ApproveAsync(id, cancellationToken);
+            await _invoiceReviewService.ApproveAsync(id, request?.Comment, cancellationToken);
             return Ok();
         }
         catch (KeyNotFoundException)
@@ -256,11 +259,12 @@ public sealed class InvoicesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RejectReview(
         string id,
+        [FromBody] ReviewDecisionRequest? request,
         CancellationToken cancellationToken)
     {
         try
         {
-            await _invoiceReviewService.RejectAsync(id, cancellationToken);
+            await _invoiceReviewService.RejectAsync(id, request?.Comment, cancellationToken);
             return Ok();
         }
         catch (KeyNotFoundException)

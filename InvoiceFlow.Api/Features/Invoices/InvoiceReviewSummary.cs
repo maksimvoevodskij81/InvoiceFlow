@@ -14,5 +14,7 @@ public sealed class InvoiceReviewSummary
 
     public string? ReviewDecision { get; set; }
 
+    public string? ReviewComment { get; set; }
+
     public string? CurrentDecisionMessage { get; set; }
 }

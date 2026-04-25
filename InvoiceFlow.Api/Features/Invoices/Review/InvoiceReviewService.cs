@@ -22,7 +22,7 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         _supplierCreateOutboxWriter = supplierCreateOutboxWriter;
     }
 
-    public async Task ApproveAsync(string invoiceId, CancellationToken cancellationToken = default)
+    public async Task ApproveAsync(string invoiceId, string? reviewComment, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
 
@@ -41,9 +41,11 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         invoice.RequiresSupplierReview = false;
         invoice.HasNewBankDetails = false;
         invoice.MatchReasons = new();
-
         invoice.ReviewedAtUtc = DateTime.UtcNow;
         invoice.ReviewDecision = ReviewDecisions.Approved;
+        invoice.ReviewComment = string.IsNullOrWhiteSpace(reviewComment)
+            ? null
+            : reviewComment.Trim();
 
         if (!string.IsNullOrWhiteSpace(invoice.ExactSupplierId))
         {
@@ -67,7 +69,7 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         }
     }
 
-    public async Task RejectAsync(string invoiceId, CancellationToken cancellationToken = default)
+    public async Task RejectAsync(string invoiceId, string? reviewComment, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
 
@@ -86,6 +88,9 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         invoice.Message = InvoiceMessages.ReviewRejected;
         invoice.ReviewedAtUtc = DateTime.UtcNow;
         invoice.ReviewDecision = ReviewDecisions.Rejected;
+        invoice.ReviewComment = string.IsNullOrWhiteSpace(reviewComment)
+            ? null
+            : reviewComment.Trim();
 
         await _uploadedInvoiceStore.SaveAsync(invoice, cancellationToken);
     }

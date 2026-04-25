@@ -80,6 +80,9 @@ public sealed class InvoiceFlowDbContext : DbContext
         uploadedInvoice.Property(x => x.ReviewDecision)
             .HasMaxLength(32);
 
+        uploadedInvoice.Property(x => x.ReviewComment)
+            .HasMaxLength(1024);
+
         uploadedInvoice.Property(x => x.MatchReasons)
      .HasConversion(
          value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
