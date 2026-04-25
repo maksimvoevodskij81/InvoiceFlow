@@ -12,6 +12,7 @@ public static class InvoiceMessages
     public const string SupplierCreatedInExactSuccessfully = "Supplier created in Exact successfully.";
 
     public const string NeedsReview = "Invoice requires review.";
+    public const string ReviewRejected = "Invoice review was rejected.";
 
     public static string MissingRequiredFields(IEnumerable<string> missingFields)
     {

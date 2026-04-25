@@ -63,4 +63,25 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
             throw new InvalidOperationException($"Invoice '{invoiceId}' has no safe next step.");
         }
     }
+
+    public async Task RejectAsync(string invoiceId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
+
+        var invoice = await _uploadedInvoiceStore.GetByIdAsync(invoiceId, cancellationToken);
+
+        if (invoice is null)
+        {
+            throw new KeyNotFoundException($"Invoice with id '{invoiceId}' was not found.");
+        }
+
+        if (invoice.Status != InvoiceStatuses.NeedsReview)
+        {
+            throw new InvalidOperationException($"Invoice '{invoiceId}' is not in '{InvoiceStatuses.NeedsReview}' status.");
+        }
+
+        invoice.Message = InvoiceMessages.ReviewRejected;
+
+        await _uploadedInvoiceStore.SaveAsync(invoice, cancellationToken);
+    }
 }
