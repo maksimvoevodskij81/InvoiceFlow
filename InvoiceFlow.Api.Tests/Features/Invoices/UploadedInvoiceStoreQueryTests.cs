@@ -23,6 +23,36 @@ public sealed class UploadedInvoiceStoreQueryTests
     }
 
     [Fact]
+    public async Task QueryAsync_ShouldReturnNewestInvoicesFirst_WhenNoFiltersProvided()
+    {
+        await using var dbContext = CreateDbContext();
+        var store = new EfUploadedInvoiceStore(dbContext);
+
+        var older = CreateRecord(
+            "invoice-older",
+            InvoiceStatuses.Parsed,
+            ReviewDecisions.Approved,
+            true,
+            DateTime.UtcNow.AddMinutes(-10));
+
+        var newer = CreateRecord(
+            "invoice-newer",
+            InvoiceStatuses.Parsed,
+            ReviewDecisions.Approved,
+            true,
+            DateTime.UtcNow);
+
+        await store.SaveAsync(older, CancellationToken.None);
+        await store.SaveAsync(newer, CancellationToken.None);
+
+        var results = await store.QueryAsync(new InvoiceListQuery(), CancellationToken.None);
+
+        Assert.Equal(2, results.Count);
+        Assert.Equal("invoice-newer", results[0].InvoiceId);
+        Assert.Equal("invoice-older", results[1].InvoiceId);
+    }
+
+    [Fact]
     public async Task QueryAsync_ShouldFilterByStatus()
     {
         await using var dbContext = CreateDbContext();
@@ -101,7 +131,8 @@ public sealed class UploadedInvoiceStoreQueryTests
         string invoiceId,
         string status,
         string? reviewDecision,
-        bool canCreateSupplier)
+        bool canCreateSupplier,
+        DateTime? createdAtUtc = null)
     {
         return new UploadedInvoiceRecord
         {
@@ -110,7 +141,7 @@ public sealed class UploadedInvoiceStoreQueryTests
             StoredFilePath = Path.Combine("temp", "invoice.pdf"),
             Status = status,
             Message = "Message",
-            CreatedAtUtc = DateTime.UtcNow,
+            CreatedAtUtc = createdAtUtc ?? DateTime.UtcNow,
             FileHash = Guid.NewGuid().ToString(),
             SupplierName = "Demo Supplier",
             InvoiceNumber = "INV-001",

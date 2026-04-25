@@ -80,6 +80,8 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             source = source.Where(x => x.CanCreateSupplier == query.CanCreateSupplier.Value);
         }
 
+        source = source.OrderByDescending(x => x.CreatedAtUtc);
+
         var entities = await source.ToListAsync(cancellationToken);
 
         return entities.Select(MapToRecord).ToList();

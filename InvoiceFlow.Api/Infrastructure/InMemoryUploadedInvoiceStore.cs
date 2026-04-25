@@ -59,7 +59,11 @@ public sealed class InMemoryUploadedInvoiceStore : IUploadedInvoiceStore
             source = source.Where(x => x.CanCreateSupplier == query.CanCreateSupplier.Value);
         }
 
-        return Task.FromResult((IReadOnlyList<UploadedInvoiceRecord>)source.ToList());
+        var list = source
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .ToList();
+
+        return Task.FromResult((IReadOnlyList<UploadedInvoiceRecord>)list);
     }
 
     public Task UpdateStatusAsync(
