@@ -234,6 +234,64 @@ public sealed class InvoicesControllerTests
         Assert.Equal("123", response.InvoiceId);
         Assert.Equal(InvoiceStatuses.Processing, response.Status);
         Assert.Equal("Invoice is still being processed.", response.Message);
+        Assert.NotNull(response.ReviewSummary);
+        Assert.False(response.ReviewSummary.RequiresReview);
+        Assert.False(response.ReviewSummary.CanCreateSupplier);
+        Assert.False(response.ReviewSummary.HasNewBankDetails);
+        Assert.Empty(response.ReviewSummary.Reasons);
+        Assert.Equal("Invoice is still being processed.", response.ReviewSummary.CurrentDecisionMessage);
+    }
+
+    [Fact]
+    public async Task GetStatus_ShouldIncludeReviewSummary_WhenInvoiceHasReviewData()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "review-status-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = "Name",
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            SupplierMatchMessage = "Review required.",
+            FileHash = "test-hash-123",
+            CanCreateSupplier = true,
+            HasNewBankDetails = true,
+            MatchReasons = new() { "Reason1", "Reason2" }
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetStatus("review-status-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceStatusResponse>(okResult.Value);
+
+        Assert.NotNull(response.ReviewSummary);
+        Assert.True(response.ReviewSummary.RequiresReview);
+        Assert.True(response.ReviewSummary.CanCreateSupplier);
+        Assert.True(response.ReviewSummary.HasNewBankDetails);
+        Assert.Equal(new[] { "Reason1", "Reason2" }, response.ReviewSummary.Reasons);
+        Assert.Equal("Invoice parsed successfully.", response.ReviewSummary.CurrentDecisionMessage);
     }
 
     [Fact]
@@ -418,6 +476,64 @@ public sealed class InvoicesControllerTests
         Assert.Equal("internal-supplier-001", response.InternalSupplierId);
         Assert.Equal("exact-supplier-001", response.ExactSupplierId);
         Assert.Equal("Supplier matched successfully.", response.SupplierMatchMessage);
+        Assert.NotNull(response.ReviewSummary);
+        Assert.False(response.ReviewSummary.RequiresReview);
+        Assert.False(response.ReviewSummary.CanCreateSupplier);
+        Assert.False(response.ReviewSummary.HasNewBankDetails);
+        Assert.Empty(response.ReviewSummary.Reasons);
+        Assert.Equal(InvoiceMessages.ReadyToPost, response.ReviewSummary.CurrentDecisionMessage);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldIncludeReviewSummary_WhenInvoiceHasReviewData()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "review-details-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "test-hash-details-123",
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = false,
+            RequiresSupplierReview = true,
+            SupplierMatchedBy = "Name",
+            InternalSupplierId = null,
+            ExactSupplierId = null,
+            SupplierMatchMessage = "Review required.",
+            CanCreateSupplier = true,
+            HasNewBankDetails = true,
+            MatchReasons = new() { "Reason1", "Reason2" }
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("review-details-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.NotNull(response.ReviewSummary);
+        Assert.True(response.ReviewSummary.RequiresReview);
+        Assert.True(response.ReviewSummary.CanCreateSupplier);
+        Assert.True(response.ReviewSummary.HasNewBankDetails);
+        Assert.Equal(new[] { "Reason1", "Reason2" }, response.ReviewSummary.Reasons);
+        Assert.Equal("Invoice parsed successfully.", response.ReviewSummary.CurrentDecisionMessage);
     }
 
     [Fact]

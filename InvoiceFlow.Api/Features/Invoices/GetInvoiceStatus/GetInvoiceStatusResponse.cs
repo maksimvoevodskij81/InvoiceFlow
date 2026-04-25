@@ -1,4 +1,6 @@
-﻿namespace InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
+﻿using InvoiceFlow.Api.Features.Invoices;
+
+namespace InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 
 public sealed class GetInvoiceStatusResponse
 {
@@ -39,4 +41,6 @@ public sealed class GetInvoiceStatusResponse
     public bool CanCreateSupplier { get; set; }
     public bool HasNewBankDetails { get; set; }
     public List<string> MatchReasons { get; set; } = new();
+
+    public InvoiceReviewSummary ReviewSummary { get; set; } = new();
 }

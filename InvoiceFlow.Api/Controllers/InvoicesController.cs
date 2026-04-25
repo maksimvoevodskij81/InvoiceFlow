@@ -157,6 +157,14 @@ public sealed class InvoicesController : ControllerBase
             CanCreateSupplier = record.CanCreateSupplier,
             HasNewBankDetails = record.HasNewBankDetails,
             MatchReasons = record.MatchReasons,
+            ReviewSummary = new InvoiceReviewSummary
+            {
+                RequiresReview = record.RequiresSupplierReview,
+                CanCreateSupplier = record.CanCreateSupplier,
+                HasNewBankDetails = record.HasNewBankDetails,
+                Reasons = record.MatchReasons,
+                CurrentDecisionMessage = record.Message
+            }
         };
 
         return Ok(response);
@@ -202,6 +210,14 @@ public sealed class InvoicesController : ControllerBase
             CanCreateSupplier = record.CanCreateSupplier,
             HasNewBankDetails = record.HasNewBankDetails,
             MatchReasons = record.MatchReasons,
+            ReviewSummary = new InvoiceReviewSummary
+            {
+                RequiresReview = record.RequiresSupplierReview,
+                CanCreateSupplier = record.CanCreateSupplier,
+                HasNewBankDetails = record.HasNewBankDetails,
+                Reasons = record.MatchReasons,
+                CurrentDecisionMessage = record.Message
+            }
         };
 
         return Ok(response);
