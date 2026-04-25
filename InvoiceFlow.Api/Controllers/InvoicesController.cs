@@ -230,6 +230,29 @@ public sealed class InvoicesController : ControllerBase
         }
     }
 
+    [HttpPost("{id}/review/reject")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RejectReview(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _invoiceReviewService.RejectAsync(id, cancellationToken);
+            return Ok();
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException)
+        {
+            return BadRequest();
+        }
+    }
+
     private static ImportInvoicesFromFolderResponse CreateImportInvoicesFromFolderResponse(
     FolderInvoiceFile file,
     InvoiceParseResult parseResult,

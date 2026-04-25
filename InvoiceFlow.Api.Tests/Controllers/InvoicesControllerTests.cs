@@ -637,6 +637,71 @@ public sealed class InvoicesControllerTests
 
         Assert.IsType<BadRequestResult>(result);
     }
+
+    [Fact]
+    public async Task RejectReview_ShouldReturnOk_WhenRejectionSucceeds()
+    {
+        var reviewService = new FakeInvoiceReviewService();
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            reviewService);
+
+        var result = await controller.RejectReview("invoice-123", CancellationToken.None);
+
+        Assert.IsType<OkResult>(result);
+        Assert.Equal(1, reviewService.RejectCallsCount);
+        Assert.Equal("invoice-123", reviewService.LastRejectedInvoiceId);
+    }
+
+    [Fact]
+    public async Task RejectReview_ShouldReturnNotFound_WhenInvoiceDoesNotExist()
+    {
+        var reviewService = new FakeInvoiceReviewService
+        {
+            RejectException = new KeyNotFoundException("Not found")
+        };
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            reviewService);
+
+        var result = await controller.RejectReview("missing-invoice", CancellationToken.None);
+
+        Assert.IsType<NotFoundResult>(result);
+    }
+
+    [Fact]
+    public async Task RejectReview_ShouldReturnBadRequest_WhenInvoiceIsNotInNeedsReview()
+    {
+        var reviewService = new FakeInvoiceReviewService
+        {
+            RejectException = new InvalidOperationException("Invalid state")
+        };
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            reviewService);
+
+        var result = await controller.RejectReview("invalid-invoice", CancellationToken.None);
+
+        Assert.IsType<BadRequestResult>(result);
+    }
 }
 
 file sealed class InvalidInvoiceParser : IInvoiceParser
