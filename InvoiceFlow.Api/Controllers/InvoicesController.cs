@@ -174,6 +174,40 @@ public sealed class InvoicesController : ControllerBase
     }
 
 
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<InvoiceListItemResponse>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<InvoiceListItemResponse>>> List(
+        [FromQuery] string? status,
+        [FromQuery] string? reviewDecision,
+        [FromQuery] bool? canCreateSupplier,
+        CancellationToken cancellationToken)
+    {
+        var query = new InvoiceListQuery
+        {
+            Status = status,
+            ReviewDecision = reviewDecision,
+            CanCreateSupplier = canCreateSupplier
+        };
+
+        var records = await _uploadedInvoiceStore.QueryAsync(query, cancellationToken);
+
+        var response = records.Select(record => new InvoiceListItemResponse
+        {
+            InvoiceId = record.InvoiceId,
+            Status = record.Status,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            InvoiceDate = record.InvoiceDate,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            CanCreateSupplier = record.CanCreateSupplier,
+            ReviewDecision = record.ReviewDecision
+        }).ToList();
+
+        return Ok(response);
+    }
+
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(GetInvoiceDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

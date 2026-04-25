@@ -647,6 +647,181 @@ public sealed class InvoicesControllerTests
     }
 
     [Fact]
+    public async Task ListInvoices_ShouldReturnAllInvoices_WhenNoFiltersProvided()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-1", InvoiceStatuses.Parsed, ReviewDecisions.Approved, true), CancellationToken.None);
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-2", InvoiceStatuses.NeedsReview, ReviewDecisions.Rejected, false), CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.List(null, null, null, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<List<InvoiceListItemResponse>>(okResult.Value);
+
+        Assert.Equal(2, response.Count);
+    }
+
+    [Fact]
+    public async Task ListInvoices_ShouldFilterByStatus()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-1", InvoiceStatuses.Parsed, ReviewDecisions.Approved, true), CancellationToken.None);
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-2", InvoiceStatuses.NeedsReview, ReviewDecisions.Rejected, false), CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.List(InvoiceStatuses.Parsed, null, null, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<List<InvoiceListItemResponse>>(okResult.Value);
+
+        Assert.Single(response);
+        Assert.Equal("invoice-1", response[0].InvoiceId);
+    }
+
+    [Fact]
+    public async Task ListInvoices_ShouldFilterByReviewDecision()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-1", InvoiceStatuses.Parsed, ReviewDecisions.Approved, true), CancellationToken.None);
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-2", InvoiceStatuses.Parsed, ReviewDecisions.Rejected, false), CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.List(null, ReviewDecisions.Rejected, null, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<List<InvoiceListItemResponse>>(okResult.Value);
+
+        Assert.Single(response);
+        Assert.Equal("invoice-2", response[0].InvoiceId);
+    }
+
+    [Fact]
+    public async Task ListInvoices_ShouldFilterByCanCreateSupplier()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-1", InvoiceStatuses.Parsed, ReviewDecisions.Approved, true), CancellationToken.None);
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-2", InvoiceStatuses.Parsed, ReviewDecisions.Approved, false), CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.List(null, null, true, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<List<InvoiceListItemResponse>>(okResult.Value);
+
+        Assert.Single(response);
+        Assert.Equal("invoice-1", response[0].InvoiceId);
+    }
+
+    [Fact]
+    public async Task ListInvoices_ShouldApplyCombinedFilters()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-1", InvoiceStatuses.Parsed, ReviewDecisions.Approved, true), CancellationToken.None);
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-2", InvoiceStatuses.Parsed, ReviewDecisions.Rejected, true), CancellationToken.None);
+        await uploadedInvoiceStore.SaveAsync(CreateInvoiceRecord("invoice-3", InvoiceStatuses.NeedsReview, ReviewDecisions.Rejected, true), CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.List(InvoiceStatuses.Parsed, ReviewDecisions.Rejected, true, CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<List<InvoiceListItemResponse>>(okResult.Value);
+
+        Assert.Single(response);
+        Assert.Equal("invoice-2", response[0].InvoiceId);
+    }
+
+    private static UploadedInvoiceRecord CreateInvoiceRecord(
+        string invoiceId,
+        string status,
+        string? reviewDecision,
+        bool canCreateSupplier)
+    {
+        return new UploadedInvoiceRecord
+        {
+            InvoiceId = invoiceId,
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = status,
+            Message = "Message",
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = Guid.NewGuid().ToString(),
+            SupplierName = "Demo Supplier",
+            InvoiceNumber = "INV-001",
+            InvoiceDate = new DateOnly(2026, 4, 1),
+            TotalAmount = 123.45m,
+            Currency = "EUR",
+            IsSupplierMatched = true,
+            RequiresSupplierReview = false,
+            SupplierMatchedBy = SupplierMatchSources.BankAccount,
+            InternalSupplierId = "internal",
+            ExactSupplierId = "exact",
+            SupplierMatchMessage = "Match",
+            ExactPostingStatus = null,
+            ExactDocumentId = null,
+            PostedToExactAtUtc = null,
+            ExactPostingError = null,
+            ReviewedAtUtc = null,
+            ReviewDecision = reviewDecision,
+            ReviewComment = null,
+            CanCreateSupplier = canCreateSupplier,
+            SupplierAddressLine = null,
+            SupplierPostcode = null,
+            SupplierCity = null,
+            SupplierCountry = null,
+            SupplierBankAccount = null,
+            SupplierBicCode = null,
+            HasNewBankDetails = false,
+            MatchReasons = new List<string>()
+        };
+    }
+
+    [Fact]
     public async Task GetById_ShouldReturnNotFound_WhenInvoiceDoesNotExist()
     {
         var controller = new InvoicesController(

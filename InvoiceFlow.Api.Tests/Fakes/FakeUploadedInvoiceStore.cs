@@ -31,6 +31,32 @@ public sealed class FakeUploadedInvoiceStore : IUploadedInvoiceStore
         return Task.FromResult(record);
     }
 
+    public Task<IReadOnlyList<UploadedInvoiceRecord>> QueryAsync(
+        InvoiceListQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        IEnumerable<UploadedInvoiceRecord> source = _records.Values;
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            source = source.Where(x => x.Status == query.Status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ReviewDecision))
+        {
+            source = source.Where(x => x.ReviewDecision == query.ReviewDecision);
+        }
+
+        if (query.CanCreateSupplier.HasValue)
+        {
+            source = source.Where(x => x.CanCreateSupplier == query.CanCreateSupplier.Value);
+        }
+
+        return Task.FromResult((IReadOnlyList<UploadedInvoiceRecord>)source.ToList());
+    }
+
     public Task UpdateStatusAsync(
         string invoiceId,
         string status,

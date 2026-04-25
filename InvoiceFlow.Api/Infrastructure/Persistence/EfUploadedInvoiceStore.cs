@@ -57,6 +57,34 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
         return entity is null ? null : MapToRecord(entity);
     }
 
+    public async Task<IReadOnlyList<UploadedInvoiceRecord>> QueryAsync(
+        InvoiceListQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        IQueryable<UploadedInvoiceEntity> source = _dbContext.UploadedInvoices.AsNoTracking();
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+        {
+            source = source.Where(x => x.Status == query.Status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.ReviewDecision))
+        {
+            source = source.Where(x => x.ReviewDecision == query.ReviewDecision);
+        }
+
+        if (query.CanCreateSupplier.HasValue)
+        {
+            source = source.Where(x => x.CanCreateSupplier == query.CanCreateSupplier.Value);
+        }
+
+        var entities = await source.ToListAsync(cancellationToken);
+
+        return entities.Select(MapToRecord).ToList();
+    }
+
     public async Task UpdateStatusAsync(
         string invoiceId,
         string status,
