@@ -157,17 +157,7 @@ public sealed class InvoicesController : ControllerBase
             CanCreateSupplier = record.CanCreateSupplier,
             HasNewBankDetails = record.HasNewBankDetails,
             MatchReasons = record.MatchReasons,
-            ReviewSummary = new InvoiceReviewSummary
-            {
-                RequiresReview = record.RequiresSupplierReview,
-                CanCreateSupplier = record.CanCreateSupplier,
-                HasNewBankDetails = record.HasNewBankDetails,
-                Reasons = record.MatchReasons,
-                ReviewedAtUtc = record.ReviewedAtUtc,
-                ReviewDecision = record.ReviewDecision,
-                ReviewComment = record.ReviewComment,
-                CurrentDecisionMessage = record.Message
-            }
+            ReviewSummary = CreateReviewSummary(record)
         };
 
         return Ok(response);
@@ -247,17 +237,7 @@ public sealed class InvoicesController : ControllerBase
             CanCreateSupplier = record.CanCreateSupplier,
             HasNewBankDetails = record.HasNewBankDetails,
             MatchReasons = record.MatchReasons,
-            ReviewSummary = new InvoiceReviewSummary
-            {
-                RequiresReview = record.RequiresSupplierReview,
-                CanCreateSupplier = record.CanCreateSupplier,
-                HasNewBankDetails = record.HasNewBankDetails,
-                Reasons = record.MatchReasons,
-                ReviewedAtUtc = record.ReviewedAtUtc,
-                ReviewDecision = record.ReviewDecision,
-                ReviewComment = record.ReviewComment,
-                CurrentDecisionMessage = record.Message
-            }
+            ReviewSummary = CreateReviewSummary(record)
         };
 
         return Ok(response);
@@ -371,5 +351,20 @@ public sealed class InvoicesController : ControllerBase
         return supplierMatchResult.IsMatched &&
                !supplierMatchResult.RequiresReview &&
                !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
+    }
+
+    private static InvoiceReviewSummary CreateReviewSummary(UploadedInvoiceRecord record)
+    {
+        return new InvoiceReviewSummary
+        {
+            RequiresReview = record.RequiresSupplierReview,
+            CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            Reasons = record.MatchReasons,
+            CurrentDecisionMessage = record.Message,
+            ReviewedAtUtc = record.ReviewedAtUtc,
+            ReviewDecision = record.ReviewDecision,
+            ReviewComment = record.ReviewComment
+        };
     }
 }
