@@ -156,7 +156,7 @@ public sealed class InvoicesControllerTests
     }
 
     [Fact]
-    public async Task Upload_ShouldDelegateToUploadService_AndReturnOkResponse()
+    public async Task Upload_ShouldDelegateToUploadService_AndReturnAcceptedResponse()
     {
         var uploadService = new FakeInvoiceUploadService
         {
@@ -191,8 +191,11 @@ public sealed class InvoicesControllerTests
 
         var result = await controller.Upload(request, CancellationToken.None);
 
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<UploadInvoiceAcceptedResponse>(okResult.Value);
+        var acceptedResult = Assert.IsType<AcceptedResult>(result.Result);
+
+        Assert.NotNull(acceptedResult.Value);
+
+        var response = Assert.IsType<UploadInvoiceAcceptedResponse>(acceptedResult.Value);
 
         Assert.Equal("123", response.InvoiceId);
         Assert.Equal(InvoiceStatuses.Parsed, response.Status);
@@ -1011,8 +1014,8 @@ public sealed class InvoicesControllerTests
 
         var result = await controller.Upload(request, CancellationToken.None);
 
-        var okResult = Assert.IsType<OkObjectResult>(result.Result);
-        var response = Assert.IsType<UploadInvoiceAcceptedResponse>(okResult.Value);
+        var acceptedResult = Assert.IsType<AcceptedResult>(result.Result);
+        var response = Assert.IsType<UploadInvoiceAcceptedResponse>(acceptedResult.Value);
 
         Assert.Equal("invalid-123", response.InvoiceId);
         Assert.Equal(InvoiceStatuses.Invalid, response.Status);
@@ -1065,27 +1068,29 @@ public sealed class InvoicesControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
-    [Fact]
-    public async Task ApproveReview_ShouldReturnBadRequest_WhenInvoiceIsNotInNeedsReviewOrHasNoSafeNextStep()
+  [Fact]
+public async Task ApproveReview_ShouldReturnBadRequest_WhenInvoiceIsNotInNeedsReviewOrHasNoSafeNextStep()
+{
+    var reviewService = new FakeInvoiceReviewService
     {
-        var reviewService = new FakeInvoiceReviewService
-        {
-            ApproveException = new InvalidOperationException("Invalid state")
-        };
+        ApproveException = new InvalidOperationException("Invalid state")
+    };
 
-        var controller = new InvoicesController(
-            new LocalInvoiceFolderReader(),
-            new FakeInvoiceParser(),
-            new FakeSupplierMatcher(),
-            new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore(),
-            new InvoiceParseResultValidator(),
-            reviewService);
+    var controller = new InvoicesController(
+        new LocalInvoiceFolderReader(),
+        new FakeInvoiceParser(),
+        new FakeSupplierMatcher(),
+        new FakeInvoiceUploadService(),
+        new FakeUploadedInvoiceStore(),
+        new InvoiceParseResultValidator(),
+        reviewService);
 
-        var result = await controller.ApproveReview("invalid-invoice", null, CancellationToken.None);
+    var result = await controller.ApproveReview("invalid-invoice", null, CancellationToken.None);
 
-        Assert.IsType<BadRequestResult>(result);
-    }
+    var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+
+    Assert.Equal("Invalid state", badRequestResult.Value);
+}
 
     [Fact]
     public async Task RejectReview_ShouldReturnOk_WhenRejectionSucceeds()
@@ -1149,7 +1154,9 @@ public sealed class InvoicesControllerTests
 
         var result = await controller.RejectReview("invalid-invoice", null, CancellationToken.None);
 
-        Assert.IsType<BadRequestResult>(result);
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+
+        Assert.Equal("Invalid state", badRequestResult.Value);
     }
 }
 
