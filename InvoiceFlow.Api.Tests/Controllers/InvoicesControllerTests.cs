@@ -1089,7 +1089,7 @@ public async Task ApproveReview_ShouldReturnBadRequest_WhenInvoiceIsNotInNeedsRe
 
     var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
 
-    Assert.Equal("Invalid state", badRequestResult.Value);
+    Assert.Equal("The invoice review action could not be completed.", badRequestResult.Value);
 }
 
     [Fact]
@@ -1156,7 +1156,7 @@ public async Task ApproveReview_ShouldReturnBadRequest_WhenInvoiceIsNotInNeedsRe
 
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
 
-        Assert.Equal("Invalid state", badRequestResult.Value);
+        Assert.Equal("The invoice review action could not be completed.", badRequestResult.Value);
     }
 }
 

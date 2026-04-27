@@ -201,9 +201,9 @@ public sealed class InvoicesController : ControllerBase
         {
             return NotFound();
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return BadRequest(ex.Message);
+            return BadRequest("The invoice review action could not be completed.");
         }
     }
 
@@ -225,9 +225,9 @@ public sealed class InvoicesController : ControllerBase
         {
             return NotFound();
         }
-        catch (InvalidOperationException ex)
+        catch (InvalidOperationException)
         {
-            return BadRequest(ex.Message);
+            return BadRequest("The invoice review action could not be completed.");
         }
     }
 
