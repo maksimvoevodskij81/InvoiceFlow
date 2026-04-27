@@ -324,50 +324,67 @@ public sealed class InvoicesController : ControllerBase
         };
     }
 
-    private static T CreateSharedInvoiceResponse<T>(UploadedInvoiceRecord record, T response)
+    private static GetInvoiceStatusResponse CreateInvoiceStatusResponse(UploadedInvoiceRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        dynamic typedResponse = response;
-        typedResponse.InvoiceId = record.InvoiceId;
-        typedResponse.Status = record.Status;
-        typedResponse.Message = record.Message ?? string.Empty;
-        typedResponse.SupplierName = record.SupplierName;
-        typedResponse.InvoiceNumber = record.InvoiceNumber;
-        typedResponse.InvoiceDate = record.InvoiceDate;
-        typedResponse.TotalAmount = record.TotalAmount;
-        typedResponse.Currency = record.Currency;
-        typedResponse.IsSupplierMatched = record.IsSupplierMatched;
-        typedResponse.RequiresSupplierReview = record.RequiresSupplierReview;
-        typedResponse.SupplierMatchedBy = record.SupplierMatchedBy;
-        typedResponse.InternalSupplierId = record.InternalSupplierId;
-        typedResponse.ExactSupplierId = record.ExactSupplierId;
-        typedResponse.SupplierMatchMessage = record.SupplierMatchMessage;
-        typedResponse.ExactPostingStatus = record.ExactPostingStatus;
-        typedResponse.ExactDocumentId = record.ExactDocumentId;
-        typedResponse.PostedToExactAtUtc = record.PostedToExactAtUtc;
-        typedResponse.ExactPostingError = record.ExactPostingError;
-        typedResponse.CanCreateSupplier = record.CanCreateSupplier;
-        typedResponse.HasNewBankDetails = record.HasNewBankDetails;
-        typedResponse.MatchReasons = record.MatchReasons;
-        typedResponse.ReviewSummary = CreateReviewSummary(record);
-
-        return response;
-    }
-
-    private static GetInvoiceStatusResponse CreateInvoiceStatusResponse(UploadedInvoiceRecord record)
-    {
-        return CreateSharedInvoiceResponse(record, new GetInvoiceStatusResponse());
+        return new GetInvoiceStatusResponse
+        {
+            InvoiceId = record.InvoiceId,
+            Status = record.Status,
+            Message = record.Message ?? string.Empty,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            InvoiceDate = record.InvoiceDate,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            IsSupplierMatched = record.IsSupplierMatched,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            SupplierMatchedBy = record.SupplierMatchedBy,
+            InternalSupplierId = record.InternalSupplierId,
+            ExactSupplierId = record.ExactSupplierId,
+            SupplierMatchMessage = record.SupplierMatchMessage,
+            ExactPostingStatus = record.ExactPostingStatus,
+            ExactDocumentId = record.ExactDocumentId,
+            PostedToExactAtUtc = record.PostedToExactAtUtc,
+            ExactPostingError = record.ExactPostingError,
+            CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            MatchReasons = record.MatchReasons,
+            ReviewSummary = CreateReviewSummary(record)
+        };
     }
 
     private static GetInvoiceDetailsResponse CreateInvoiceDetailsResponse(UploadedInvoiceRecord record)
     {
-        return CreateSharedInvoiceResponse(
-            record,
-            new GetInvoiceDetailsResponse
-            {
-                OriginalFileName = record.OriginalFileName,
-                CreatedAtUtc = record.CreatedAtUtc
-            });
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new GetInvoiceDetailsResponse
+        {
+            InvoiceId = record.InvoiceId,
+            OriginalFileName = record.OriginalFileName,
+            CreatedAtUtc = record.CreatedAtUtc,
+            Status = record.Status,
+            Message = record.Message ?? string.Empty,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            InvoiceDate = record.InvoiceDate,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            IsSupplierMatched = record.IsSupplierMatched,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            SupplierMatchedBy = record.SupplierMatchedBy,
+            InternalSupplierId = record.InternalSupplierId,
+            ExactSupplierId = record.ExactSupplierId,
+            SupplierMatchMessage = record.SupplierMatchMessage,
+            ExactPostingStatus = record.ExactPostingStatus,
+            ExactDocumentId = record.ExactDocumentId,
+            PostedToExactAtUtc = record.PostedToExactAtUtc,
+            ExactPostingError = record.ExactPostingError,
+            CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            MatchReasons = record.MatchReasons,
+            ReviewSummary = CreateReviewSummary(record)
+        };
     }
 }
