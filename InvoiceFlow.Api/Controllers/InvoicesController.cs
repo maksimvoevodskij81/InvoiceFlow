@@ -181,19 +181,7 @@ public sealed class InvoicesController : ControllerBase
 
         var records = await _uploadedInvoiceStore.QueryAsync(query, cancellationToken);
 
-        var response = records.Select(record => new InvoiceListItemResponse
-        {
-            InvoiceId = record.InvoiceId,
-            Status = record.Status,
-            SupplierName = record.SupplierName,
-            InvoiceNumber = record.InvoiceNumber,
-            InvoiceDate = record.InvoiceDate,
-            TotalAmount = record.TotalAmount,
-            Currency = record.Currency,
-            RequiresSupplierReview = record.RequiresSupplierReview,
-            CanCreateSupplier = record.CanCreateSupplier,
-            ReviewDecision = record.ReviewDecision
-        }).ToList();
+        var response = records.Select(CreateInvoiceListItemResponse).ToList();
 
         return Ok(response);
     }
@@ -365,6 +353,23 @@ public sealed class InvoicesController : ControllerBase
             ReviewedAtUtc = record.ReviewedAtUtc,
             ReviewDecision = record.ReviewDecision,
             ReviewComment = record.ReviewComment
+        };
+    }
+
+    private static InvoiceListItemResponse CreateInvoiceListItemResponse(UploadedInvoiceRecord record)
+    {
+        return new InvoiceListItemResponse
+        {
+            InvoiceId = record.InvoiceId,
+            Status = record.Status,
+            ReviewDecision = record.ReviewDecision,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            CanCreateSupplier = record.CanCreateSupplier,
+            InvoiceDate = record.InvoiceDate
         };
     }
 }
