@@ -358,8 +358,6 @@ public sealed class InvoicesController : ControllerBase
 
     private static InvoiceListItemResponse CreateInvoiceListItemResponse(UploadedInvoiceRecord record)
     {
-        ArgumentNullException.ThrowIfNull(record);
-
         return new InvoiceListItemResponse
         {
             InvoiceId = record.InvoiceId,
@@ -370,7 +368,8 @@ public sealed class InvoicesController : ControllerBase
             TotalAmount = record.TotalAmount,
             Currency = record.Currency,
             RequiresSupplierReview = record.RequiresSupplierReview,
-            CanCreateSupplier = record.CanCreateSupplier
+            CanCreateSupplier = record.CanCreateSupplier,
+            InvoiceDate = record.InvoiceDate
         };
     }
 }
