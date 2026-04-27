@@ -192,9 +192,6 @@ public sealed class InvoicesControllerTests
         var result = await controller.Upload(request, CancellationToken.None);
 
         var acceptedResult = Assert.IsType<AcceptedResult>(result.Result);
-
-        Assert.NotNull(acceptedResult.Value);
-
         var response = Assert.IsType<UploadInvoiceAcceptedResponse>(acceptedResult.Value);
 
         Assert.Equal("123", response.InvoiceId);
@@ -1068,29 +1065,29 @@ public sealed class InvoicesControllerTests
         Assert.IsType<NotFoundResult>(result);
     }
 
-  [Fact]
-public async Task ApproveReview_ShouldReturnBadRequest_WhenInvoiceIsNotInNeedsReviewOrHasNoSafeNextStep()
-{
-    var reviewService = new FakeInvoiceReviewService
+    [Fact]
+    public async Task ApproveReview_ShouldReturnBadRequest_WhenInvoiceIsNotInNeedsReviewOrHasNoSafeNextStep()
     {
-        ApproveException = new InvalidOperationException("Invalid state")
-    };
+        var reviewService = new FakeInvoiceReviewService
+        {
+            ApproveException = new InvalidOperationException("Invalid state")
+        };
 
-    var controller = new InvoicesController(
-        new LocalInvoiceFolderReader(),
-        new FakeInvoiceParser(),
-        new FakeSupplierMatcher(),
-        new FakeInvoiceUploadService(),
-        new FakeUploadedInvoiceStore(),
-        new InvoiceParseResultValidator(),
-        reviewService);
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            reviewService);
 
-    var result = await controller.ApproveReview("invalid-invoice", null, CancellationToken.None);
+        var result = await controller.ApproveReview("invalid-invoice", null, CancellationToken.None);
 
-    var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
+        var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
 
-    Assert.Equal("The invoice review action could not be completed.", badRequestResult.Value);
-}
+        Assert.Equal("The invoice review action could not be completed.", badRequestResult.Value);
+    }
 
     [Fact]
     public async Task RejectReview_ShouldReturnOk_WhenRejectionSucceeds()

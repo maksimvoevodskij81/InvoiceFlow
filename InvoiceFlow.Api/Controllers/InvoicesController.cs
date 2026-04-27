@@ -327,6 +327,8 @@ public sealed class InvoicesController : ControllerBase
 
     private static GetInvoiceStatusResponse CreateInvoiceStatusResponse(UploadedInvoiceRecord record)
     {
+        ArgumentNullException.ThrowIfNull(record);
+
         return new GetInvoiceStatusResponse
         {
             InvoiceId = record.InvoiceId,
@@ -356,6 +358,8 @@ public sealed class InvoicesController : ControllerBase
 
     private static GetInvoiceDetailsResponse CreateInvoiceDetailsResponse(UploadedInvoiceRecord record)
     {
+        ArgumentNullException.ThrowIfNull(record);
+
         return new GetInvoiceDetailsResponse
         {
             InvoiceId = record.InvoiceId,
