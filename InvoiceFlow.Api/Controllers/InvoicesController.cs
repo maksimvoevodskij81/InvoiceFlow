@@ -235,6 +235,10 @@ public sealed class InvoicesController : ControllerBase
         InvoiceParseResult parseResult,
         SupplierMatchResult supplierMatchResult)
     {
+        ArgumentNullException.ThrowIfNull(file);
+        ArgumentNullException.ThrowIfNull(parseResult);
+        ArgumentNullException.ThrowIfNull(supplierMatchResult);
+
         var isReadyToPost = IsReadyToPost(supplierMatchResult);
         return new ImportInvoicesFromFolderResponse
         {
@@ -263,6 +267,10 @@ public sealed class InvoicesController : ControllerBase
         InvoiceParseResult parseResult,
         List<string> missingFields)
     {
+        ArgumentNullException.ThrowIfNull(file);
+        ArgumentNullException.ThrowIfNull(parseResult);
+        ArgumentNullException.ThrowIfNull(missingFields);
+
         return new ImportInvoicesFromFolderResponse
         {
             FileName = file.FileName,
@@ -294,6 +302,8 @@ public sealed class InvoicesController : ControllerBase
 
     private static InvoiceReviewSummary CreateReviewSummary(UploadedInvoiceRecord record)
     {
+        ArgumentNullException.ThrowIfNull(record);
+
         return new InvoiceReviewSummary
         {
             RequiresReview = record.RequiresSupplierReview,
@@ -309,6 +319,8 @@ public sealed class InvoicesController : ControllerBase
 
     private static InvoiceListItemResponse CreateInvoiceListItemResponse(UploadedInvoiceRecord record)
     {
+        ArgumentNullException.ThrowIfNull(record);
+
         return new InvoiceListItemResponse
         {
             InvoiceId = record.InvoiceId,
