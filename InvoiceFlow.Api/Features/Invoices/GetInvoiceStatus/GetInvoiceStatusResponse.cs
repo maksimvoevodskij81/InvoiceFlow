@@ -20,6 +20,16 @@ public sealed class GetInvoiceStatusResponse
 
     public string? Currency { get; set; }
 
+    public string? ExtractionModel { get; set; }
+
+    public DateTime? ExtractionCompletedAtUtc { get; set; }
+
+    public string? RawExtractionJson { get; set; }
+
+    public List<string> ExtractionWarnings { get; set; } = new();
+
+    public string? ExtractionError { get; set; }
+
     public bool IsSupplierMatched { get; set; }
 
     public bool RequiresSupplierReview { get; set; }

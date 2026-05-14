@@ -84,6 +84,57 @@ public sealed class InvoiceUploadServiceTests
     }
 
     [Fact]
+    public async Task UploadAsync_ShouldSetExtractionMetadata_WhenParsingSucceeds()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var service = new InvoiceUploadService(
+                 new FakeInvoiceParser(),
+                 new FakeSupplierMatcher(),
+                 new LocalUploadedInvoiceFileStore(),
+                 uploadedInvoiceStore,
+                 new FakeExactPostOutboxWriter(),
+                 new InvoiceParseResultValidator(),
+                 new SupplierCreateValidator(),
+                 new FakeSupplierCreateOutboxWriter(),
+                 new FakeBankDetailsRiskEvaluator());
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+            var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.NotNull(savedRecord);
+            Assert.Equal(nameof(FakeInvoiceParser), savedRecord.ExtractionModel);
+            Assert.NotNull(savedRecord.ExtractionCompletedAtUtc);
+            Assert.Null(savedRecord.RawExtractionJson);
+            Assert.Empty(savedRecord.ExtractionWarnings);
+            Assert.Null(savedRecord.ExtractionError);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task UploadAsync_ShouldReturnDuplicate_WhenFileWithSameHashAlreadyExists()
     {
         var originalCurrentDirectory = Directory.GetCurrentDirectory();
@@ -253,6 +304,11 @@ public sealed class InvoiceUploadServiceTests
             Assert.Null(savedRecord.InternalSupplierId);
             Assert.Null(savedRecord.ExactSupplierId);
             Assert.Null(savedRecord.SupplierMatchMessage);
+            Assert.Equal(nameof(ThrowingInvoiceParser), savedRecord.ExtractionModel);
+            Assert.NotNull(savedRecord.ExtractionCompletedAtUtc);
+            Assert.Null(savedRecord.RawExtractionJson);
+            Assert.Empty(savedRecord.ExtractionWarnings);
+            Assert.Equal(InvoiceMessages.ParsingFailed, savedRecord.ExtractionError);
         }
         finally
         {

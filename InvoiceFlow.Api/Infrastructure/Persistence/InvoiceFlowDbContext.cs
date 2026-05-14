@@ -83,6 +83,21 @@ public sealed class InvoiceFlowDbContext : DbContext
         uploadedInvoice.Property(x => x.ReviewComment)
             .HasMaxLength(1024);
 
+        uploadedInvoice.Property(x => x.ExtractionModel)
+            .HasMaxLength(128);
+
+        uploadedInvoice.Property(x => x.RawExtractionJson)
+            .HasColumnType("nvarchar(max)");
+
+        uploadedInvoice.Property(x => x.ExtractionError)
+            .HasMaxLength(1024);
+
+        uploadedInvoice.Property(x => x.ExtractionWarnings)
+            .HasConversion(
+                value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),
+                value => JsonSerializer.Deserialize<List<string>>(value, (JsonSerializerOptions?)null) ?? new List<string>())
+            .HasColumnType("nvarchar(max)");
+
         uploadedInvoice.Property(x => x.MatchReasons)
      .HasConversion(
          value => JsonSerializer.Serialize(value, (JsonSerializerOptions?)null),

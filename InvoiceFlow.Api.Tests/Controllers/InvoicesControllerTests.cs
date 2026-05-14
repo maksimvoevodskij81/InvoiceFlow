@@ -243,6 +243,48 @@ public sealed class InvoicesControllerTests
     }
 
     [Fact]
+    public async Task GetStatus_ShouldReturnExtractionMetadata()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "extraction-status-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "test-hash-123",
+            ExtractionModel = "FakeParser",
+            ExtractionCompletedAtUtc = DateTime.UtcNow,
+            RawExtractionJson = null,
+            ExtractionWarnings = new() { "Field confidence low" },
+            ExtractionError = null
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetStatus("extraction-status-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceStatusResponse>(okResult.Value);
+
+        Assert.Equal("FakeParser", response.ExtractionModel);
+        Assert.NotNull(response.ExtractionCompletedAtUtc);
+        Assert.Null(response.RawExtractionJson);
+        Assert.Equal(new[] { "Field confidence low" }, response.ExtractionWarnings);
+        Assert.Null(response.ExtractionError);
+    }
+
+    [Fact]
     public async Task GetStatus_ShouldIncludeReviewSummary_WhenInvoiceHasReviewData()
     {
         var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
@@ -537,6 +579,48 @@ public sealed class InvoicesControllerTests
         Assert.False(response.ReviewSummary.HasNewBankDetails);
         Assert.Empty(response.ReviewSummary.Reasons);
         Assert.Equal(InvoiceMessages.ReadyToPost, response.ReviewSummary.CurrentDecisionMessage);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnExtractionMetadata()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId = "extraction-details-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath = Path.Combine("temp", "invoice.pdf"),
+            Status = InvoiceStatuses.Parsed,
+            Message = "Invoice parsed successfully.",
+            CreatedAtUtc = DateTime.UtcNow,
+            FileHash = "test-hash-details-123",
+            ExtractionModel = "FakeParser",
+            ExtractionCompletedAtUtc = DateTime.UtcNow,
+            RawExtractionJson = null,
+            ExtractionWarnings = new() { "Field confidence low" },
+            ExtractionError = null
+        });
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("extraction-details-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.Equal("FakeParser", response.ExtractionModel);
+        Assert.NotNull(response.ExtractionCompletedAtUtc);
+        Assert.Null(response.RawExtractionJson);
+        Assert.Equal(new[] { "Field confidence low" }, response.ExtractionWarnings);
+        Assert.Null(response.ExtractionError);
     }
 
     [Fact]

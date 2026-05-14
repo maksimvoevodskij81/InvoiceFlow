@@ -32,6 +32,36 @@ public sealed class EfUploadedInvoiceStoreTests
     }
 
     [Fact]
+    public async Task SaveAsync_ShouldPersistExtractionMetadata()
+    {
+        await using var dbContext = CreateDbContext();
+        var store = new EfUploadedInvoiceStore(dbContext);
+
+        var record = CreateRecord(
+            invoiceId: "invoice-extraction-1",
+            fileHash: "hash-extraction-1",
+            status: InvoiceStatuses.Parsed,
+            message: "Parsed successfully.");
+
+        record.ExtractionModel = "FakeParser";
+        record.ExtractionCompletedAtUtc = DateTime.UtcNow;
+        record.RawExtractionJson = null;
+        record.ExtractionWarnings = new List<string> { "Warning1" };
+        record.ExtractionError = null;
+
+        await store.SaveAsync(record, CancellationToken.None);
+
+        var savedRecord = await store.GetByIdAsync("invoice-extraction-1", CancellationToken.None);
+
+        Assert.NotNull(savedRecord);
+        Assert.Equal("FakeParser", savedRecord.ExtractionModel);
+        Assert.NotNull(savedRecord.ExtractionCompletedAtUtc);
+        Assert.Null(savedRecord.RawExtractionJson);
+        Assert.Equal(new[] { "Warning1" }, savedRecord.ExtractionWarnings);
+        Assert.Null(savedRecord.ExtractionError);
+    }
+
+    [Fact]
     public async Task SaveAsync_ShouldPersistReviewAuditFields()
     {
         await using var dbContext = CreateDbContext();

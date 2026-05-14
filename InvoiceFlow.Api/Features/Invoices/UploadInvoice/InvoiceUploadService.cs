@@ -60,6 +60,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             };
         }
 
+        var extractionModel = _invoiceParser.GetType().Name;
         var invoiceId = Guid.NewGuid().ToString();
         var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(file, cancellationToken);
 
@@ -76,7 +77,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
 
             if (missingFields.Count > 0)
             {
-                var invalidRecord = CreateInvalidRecord(record, parseResult, missingFields);
+                var invalidRecord = CreateInvalidRecord(record, parseResult, missingFields, extractionModel);
 
                 await _uploadedInvoiceStore.SaveAsync(invalidRecord, cancellationToken);
 
@@ -126,7 +127,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 !supplierMatchResult.RequiresReview &&
                 !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
 
-            var parsedRecord = CreateParsedRecord(record, parseResult, supplierMatchResult, canCreateSupplier);
+            var parsedRecord = CreateParsedRecord(record, parseResult, supplierMatchResult, canCreateSupplier, extractionModel);
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
 
@@ -150,17 +151,21 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         }
         catch (Exception)
         {
-            await _uploadedInvoiceStore.UpdateStatusAsync(
-                invoiceId,
-                InvoiceStatuses.Failed,
-                InvoiceMessages.ParsingFailed,
-                cancellationToken);
+            record.Status = InvoiceStatuses.Failed;
+            record.Message = InvoiceMessages.ParsingFailed;
+            record.ExtractionCompletedAtUtc = DateTime.UtcNow;
+            record.ExtractionModel = extractionModel;
+            record.RawExtractionJson = null;
+            record.ExtractionWarnings = new List<string>();
+            record.ExtractionError = InvoiceMessages.ParsingFailed;
+
+            await _uploadedInvoiceStore.SaveAsync(record, cancellationToken);
 
             return new UploadInvoiceAcceptedResponse
             {
                 InvoiceId = invoiceId,
                 Status = InvoiceStatuses.Failed,
-                Message =InvoiceMessages.ParsingFailed, 
+                Message = InvoiceMessages.ParsingFailed,
                 MissingFields = new List<string>()
             };
         }
@@ -239,7 +244,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     private static UploadedInvoiceRecord CreateInvalidRecord(
     UploadedInvoiceRecord processingRecord,
     InvoiceParseResult parseResult,
-    List<string> missingFields)
+    List<string> missingFields,
+    string extractionModel)
     {
         ArgumentNullException.ThrowIfNull(processingRecord);
         ArgumentNullException.ThrowIfNull(parseResult);
@@ -268,7 +274,12 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             ExactPostingStatus = null,
             ExactDocumentId = null,
             PostedToExactAtUtc = null,
-            ExactPostingError = null
+            ExactPostingError = null,
+            ExtractionCompletedAtUtc = DateTime.UtcNow,
+            ExtractionModel = extractionModel,
+            RawExtractionJson = null,
+            ExtractionWarnings = new List<string>(),
+            ExtractionError = null
         };
     }
 
@@ -276,7 +287,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     UploadedInvoiceRecord processingRecord,
     InvoiceParseResult parseResult,
     SupplierMatchResult supplierMatchResult,
-    bool canCreateSupplier)
+    bool canCreateSupplier,
+    string extractionModel)
     {
         ArgumentNullException.ThrowIfNull(processingRecord);
         ArgumentNullException.ThrowIfNull(parseResult);
@@ -333,6 +345,11 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             ExactPostingError = null,
             CanCreateSupplier = canCreateSupplier,
             HasNewBankDetails = supplierMatchResult.HasNewBankDetails,
+            ExtractionCompletedAtUtc = DateTime.UtcNow,
+            ExtractionModel = extractionModel,
+            RawExtractionJson = null,
+            ExtractionWarnings = new List<string>(),
+            ExtractionError = null,
             MatchReasons = supplierMatchResult.Reasons
         };
     }
