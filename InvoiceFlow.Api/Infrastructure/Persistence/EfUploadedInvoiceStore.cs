@@ -177,6 +177,11 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             SupplierBankAccount = record.SupplierBankAccount,
             SupplierBicCode = record.SupplierBicCode,
             HasNewBankDetails = record.HasNewBankDetails,
+            ExtractionModel = record.ExtractionModel,
+            ExtractionCompletedAtUtc = record.ExtractionCompletedAtUtc,
+            RawExtractionJson = record.RawExtractionJson,
+            ExtractionWarnings = record.ExtractionWarnings,
+            ExtractionError = record.ExtractionError,
             MatchReasons = record.MatchReasons
         };
     }
@@ -218,6 +223,11 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             SupplierBankAccount = entity.SupplierBankAccount,
             SupplierBicCode = entity.SupplierBicCode,
             HasNewBankDetails = entity.HasNewBankDetails,
+            ExtractionModel = entity.ExtractionModel,
+            ExtractionCompletedAtUtc = entity.ExtractionCompletedAtUtc,
+            RawExtractionJson = entity.RawExtractionJson,
+            ExtractionWarnings = entity.ExtractionWarnings,
+            ExtractionError = entity.ExtractionError,
             MatchReasons = entity.MatchReasons
         };
     }
@@ -256,6 +266,11 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
         entity.SupplierBankAccount = record.SupplierBankAccount;
         entity.SupplierBicCode = record.SupplierBicCode;
         entity.HasNewBankDetails = record.HasNewBankDetails;
+        entity.ExtractionModel = record.ExtractionModel;
+        entity.ExtractionCompletedAtUtc = record.ExtractionCompletedAtUtc;
+        entity.RawExtractionJson = record.RawExtractionJson;
+        entity.ExtractionWarnings = record.ExtractionWarnings;
+        entity.ExtractionError = record.ExtractionError;
         entity.MatchReasons = record.MatchReasons;
     }
 }

@@ -91,7 +91,7 @@ public sealed class LlmInvoiceParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_ShouldStoreLastExtractionResult_OnSuccess()
+    public async Task ParseAsync_ShouldStoreLastExtractionResult_AfterSuccessfulParse()
     {
         var fields = new LlmExtractedFields
         {
@@ -112,7 +112,7 @@ public sealed class LlmInvoiceParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_ShouldStoreLastExtractionResult_OnFailure()
+    public async Task ParseAsync_ShouldStoreLastExtractionResult_AfterFailedParse()
     {
         var extractor = new StubLlmInvoiceExtractor(FailureResult("Timeout", "Extraction timed out."));
         var parser = new LlmInvoiceParser(extractor);
@@ -126,17 +126,19 @@ public sealed class LlmInvoiceParserTests
     }
 
     [Fact]
-    public async Task ParseAsync_ShouldMapPopulatedFieldsOnly_WhenFieldsArePartial()
+    public async Task ParseAsync_ShouldMapPartialFields_WhenSomeFieldsAreNull()
     {
         var fields = new LlmExtractedFields
         {
-            SupplierName = "Partial BV",
-            InvoiceNumber = "INV-PARTIAL",
-            Currency = "EUR",
-            InvoiceDate = null,
+            SupplierName = "Test Supplier",
+            InvoiceNumber = null,
+            InvoiceDate = new DateOnly(2026, 5, 1),
             TotalAmount = null,
-            SupplierCity = null,
-            SupplierBankAccount = null
+            Currency = "EUR",
+            SupplierAddressLine = "456 Oak Ave",
+            SupplierPostcode = null,
+            SupplierCity = "Rotterdam",
+            SupplierCountry = null
         };
 
         var extractor = new StubLlmInvoiceExtractor(SuccessResult(fields));
@@ -144,17 +146,19 @@ public sealed class LlmInvoiceParserTests
 
         var result = await parser.ParseAsync(AnyFile);
 
-        Assert.Equal("Partial BV", result.SupplierName);
-        Assert.Equal("INV-PARTIAL", result.InvoiceNumber);
-        Assert.Equal("EUR", result.Currency);
-        Assert.Null(result.InvoiceDate);
+        Assert.Equal("Test Supplier", result.SupplierName);
+        Assert.Equal(string.Empty, result.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 5, 1), result.InvoiceDate);
         Assert.Null(result.TotalAmount);
-        Assert.Null(result.SupplierCity);
-        Assert.Null(result.SupplierBankAccount);
+        Assert.Equal("EUR", result.Currency);
+        Assert.Equal("456 Oak Ave", result.SupplierAddressLine);
+        Assert.Null(result.SupplierPostcode);
+        Assert.Equal("Rotterdam", result.SupplierCity);
+        Assert.Null(result.SupplierCountry);
     }
 
     [Fact]
-    public async Task ParseAsync_ShouldNotThrow_WhenExtractorThrowsUnexpectedException()
+    public async Task ParseAsync_ShouldNotThrow_WhenExtractorThrowsUnexpectedly()
     {
         var extractor = new ThrowingLlmInvoiceExtractor("Unexpected internal error.");
         var parser = new LlmInvoiceParser(extractor);

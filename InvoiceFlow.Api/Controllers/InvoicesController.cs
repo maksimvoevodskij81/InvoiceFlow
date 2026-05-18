@@ -54,7 +54,7 @@ public sealed class InvoicesController : ControllerBase
 
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
-    [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<UploadInvoiceAcceptedResponse>> Upload(
         [FromForm] UploadInvoiceRequest request,
@@ -79,8 +79,9 @@ public sealed class InvoicesController : ControllerBase
 
         var response = await _invoiceUploadService.UploadAsync(request.File, cancellationToken);
 
-        return Ok(response);
+        return Accepted(response);
     }
+
     [HttpPost("import-from-folder")]
     [ProducesResponseType(typeof(ImportInvoicesFromFolderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -134,41 +135,7 @@ public sealed class InvoicesController : ControllerBase
             return NotFound();
         }
 
-        var response = new GetInvoiceStatusResponse
-        {
-            InvoiceId = record.InvoiceId,
-            Status = record.Status,
-            Message = record.Message ?? string.Empty,
-            SupplierName = record.SupplierName,
-            InvoiceNumber = record.InvoiceNumber,
-            InvoiceDate = record.InvoiceDate,
-            TotalAmount = record.TotalAmount,
-            Currency = record.Currency,
-            IsSupplierMatched = record.IsSupplierMatched,
-            RequiresSupplierReview = record.RequiresSupplierReview,
-            SupplierMatchedBy = record.SupplierMatchedBy,
-            InternalSupplierId = record.InternalSupplierId,
-            ExactSupplierId = record.ExactSupplierId,
-            SupplierMatchMessage = record.SupplierMatchMessage,
-            ExactPostingStatus = record.ExactPostingStatus,
-            ExactDocumentId = record.ExactDocumentId,
-            PostedToExactAtUtc = record.PostedToExactAtUtc,
-            ExactPostingError = record.ExactPostingError,
-            CanCreateSupplier = record.CanCreateSupplier,
-            HasNewBankDetails = record.HasNewBankDetails,
-            MatchReasons = record.MatchReasons,
-            ReviewSummary = new InvoiceReviewSummary
-            {
-                RequiresReview = record.RequiresSupplierReview,
-                CanCreateSupplier = record.CanCreateSupplier,
-                HasNewBankDetails = record.HasNewBankDetails,
-                Reasons = record.MatchReasons,
-                ReviewedAtUtc = record.ReviewedAtUtc,
-                ReviewDecision = record.ReviewDecision,
-                ReviewComment = record.ReviewComment,
-                CurrentDecisionMessage = record.Message
-            }
-        };
+        var response = CreateInvoiceStatusResponse(record);
 
         return Ok(response);
     }
@@ -191,19 +158,7 @@ public sealed class InvoicesController : ControllerBase
 
         var records = await _uploadedInvoiceStore.QueryAsync(query, cancellationToken);
 
-        var response = records.Select(record => new InvoiceListItemResponse
-        {
-            InvoiceId = record.InvoiceId,
-            Status = record.Status,
-            SupplierName = record.SupplierName,
-            InvoiceNumber = record.InvoiceNumber,
-            InvoiceDate = record.InvoiceDate,
-            TotalAmount = record.TotalAmount,
-            Currency = record.Currency,
-            RequiresSupplierReview = record.RequiresSupplierReview,
-            CanCreateSupplier = record.CanCreateSupplier,
-            ReviewDecision = record.ReviewDecision
-        }).ToList();
+        var response = records.Select(CreateInvoiceListItemResponse).ToList();
 
         return Ok(response);
     }
@@ -212,8 +167,8 @@ public sealed class InvoicesController : ControllerBase
     [ProducesResponseType(typeof(GetInvoiceDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<GetInvoiceDetailsResponse>> GetById(
-    string id,
-    CancellationToken cancellationToken)
+        string id,
+        CancellationToken cancellationToken)
     {
         var record = await _uploadedInvoiceStore.GetByIdAsync(id, cancellationToken);
 
@@ -222,43 +177,7 @@ public sealed class InvoicesController : ControllerBase
             return NotFound();
         }
 
-        var response = new GetInvoiceDetailsResponse
-        {
-            InvoiceId = record.InvoiceId,
-            OriginalFileName = record.OriginalFileName,
-            CreatedAtUtc = record.CreatedAtUtc,
-            Status = record.Status,
-            Message = record.Message ?? string.Empty,
-            SupplierName = record.SupplierName,
-            InvoiceNumber = record.InvoiceNumber,
-            InvoiceDate = record.InvoiceDate,
-            TotalAmount = record.TotalAmount,
-            Currency = record.Currency,
-            IsSupplierMatched = record.IsSupplierMatched,
-            RequiresSupplierReview = record.RequiresSupplierReview,
-            SupplierMatchedBy = record.SupplierMatchedBy,
-            InternalSupplierId = record.InternalSupplierId,
-            ExactSupplierId = record.ExactSupplierId,
-            SupplierMatchMessage = record.SupplierMatchMessage,
-            ExactPostingStatus = record.ExactPostingStatus,
-            ExactDocumentId = record.ExactDocumentId,
-            PostedToExactAtUtc = record.PostedToExactAtUtc,
-            ExactPostingError = record.ExactPostingError,
-            CanCreateSupplier = record.CanCreateSupplier,
-            HasNewBankDetails = record.HasNewBankDetails,
-            MatchReasons = record.MatchReasons,
-            ReviewSummary = new InvoiceReviewSummary
-            {
-                RequiresReview = record.RequiresSupplierReview,
-                CanCreateSupplier = record.CanCreateSupplier,
-                HasNewBankDetails = record.HasNewBankDetails,
-                Reasons = record.MatchReasons,
-                ReviewedAtUtc = record.ReviewedAtUtc,
-                ReviewDecision = record.ReviewDecision,
-                ReviewComment = record.ReviewComment,
-                CurrentDecisionMessage = record.Message
-            }
-        };
+        var response = CreateInvoiceDetailsResponse(record);
 
         return Ok(response);
     }
@@ -283,7 +202,7 @@ public sealed class InvoicesController : ControllerBase
         }
         catch (InvalidOperationException)
         {
-            return BadRequest();
+            return BadRequest("The invoice review action could not be completed.");
         }
     }
 
@@ -307,15 +226,19 @@ public sealed class InvoicesController : ControllerBase
         }
         catch (InvalidOperationException)
         {
-            return BadRequest();
+            return BadRequest("The invoice review action could not be completed.");
         }
     }
 
     private static ImportInvoicesFromFolderResponse CreateImportInvoicesFromFolderResponse(
-    FolderInvoiceFile file,
-    InvoiceParseResult parseResult,
-    SupplierMatchResult supplierMatchResult)
+        FolderInvoiceFile file,
+        InvoiceParseResult parseResult,
+        SupplierMatchResult supplierMatchResult)
     {
+        ArgumentNullException.ThrowIfNull(file);
+        ArgumentNullException.ThrowIfNull(parseResult);
+        ArgumentNullException.ThrowIfNull(supplierMatchResult);
+
         var isReadyToPost = IsReadyToPost(supplierMatchResult);
         return new ImportInvoicesFromFolderResponse
         {
@@ -340,10 +263,14 @@ public sealed class InvoicesController : ControllerBase
     }
 
     private static ImportInvoicesFromFolderResponse CreateInvalidImportInvoicesFromFolderResponse(
-    FolderInvoiceFile file,
-    InvoiceParseResult parseResult,
-    List<string> missingFields)
+        FolderInvoiceFile file,
+        InvoiceParseResult parseResult,
+        List<string> missingFields)
     {
+        ArgumentNullException.ThrowIfNull(file);
+        ArgumentNullException.ThrowIfNull(parseResult);
+        ArgumentNullException.ThrowIfNull(missingFields);
+
         return new ImportInvoicesFromFolderResponse
         {
             FileName = file.FileName,
@@ -371,5 +298,115 @@ public sealed class InvoicesController : ControllerBase
         return supplierMatchResult.IsMatched &&
                !supplierMatchResult.RequiresReview &&
                !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
+    }
+
+    private static InvoiceReviewSummary CreateReviewSummary(UploadedInvoiceRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new InvoiceReviewSummary
+        {
+            RequiresReview = record.RequiresSupplierReview,
+            CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            Reasons = record.MatchReasons,
+            CurrentDecisionMessage = record.Message,
+            ReviewedAtUtc = record.ReviewedAtUtc,
+            ReviewDecision = record.ReviewDecision,
+            ReviewComment = record.ReviewComment
+        };
+    }
+
+    private static InvoiceListItemResponse CreateInvoiceListItemResponse(UploadedInvoiceRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new InvoiceListItemResponse
+        {
+            InvoiceId = record.InvoiceId,
+            Status = record.Status,
+            ReviewDecision = record.ReviewDecision,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            CanCreateSupplier = record.CanCreateSupplier,
+            InvoiceDate = record.InvoiceDate
+        };
+    }
+
+    private static GetInvoiceStatusResponse CreateInvoiceStatusResponse(UploadedInvoiceRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new GetInvoiceStatusResponse
+        {
+            InvoiceId = record.InvoiceId,
+            Status = record.Status,
+            Message = record.Message ?? string.Empty,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            InvoiceDate = record.InvoiceDate,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            ExtractionModel = record.ExtractionModel,
+            ExtractionCompletedAtUtc = record.ExtractionCompletedAtUtc,
+            RawExtractionJson = record.RawExtractionJson,
+            ExtractionWarnings = record.ExtractionWarnings,
+            ExtractionError = record.ExtractionError,
+            IsSupplierMatched = record.IsSupplierMatched,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            SupplierMatchedBy = record.SupplierMatchedBy,
+            InternalSupplierId = record.InternalSupplierId,
+            ExactSupplierId = record.ExactSupplierId,
+            SupplierMatchMessage = record.SupplierMatchMessage,
+            ExactPostingStatus = record.ExactPostingStatus,
+            ExactDocumentId = record.ExactDocumentId,
+            PostedToExactAtUtc = record.PostedToExactAtUtc,
+            ExactPostingError = record.ExactPostingError,
+            CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            MatchReasons = record.MatchReasons,
+            ReviewSummary = CreateReviewSummary(record)
+        };
+    }
+
+    private static GetInvoiceDetailsResponse CreateInvoiceDetailsResponse(UploadedInvoiceRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        return new GetInvoiceDetailsResponse
+        {
+            InvoiceId = record.InvoiceId,
+            OriginalFileName = record.OriginalFileName,
+            CreatedAtUtc = record.CreatedAtUtc,
+            Status = record.Status,
+            Message = record.Message ?? string.Empty,
+            SupplierName = record.SupplierName,
+            InvoiceNumber = record.InvoiceNumber,
+            InvoiceDate = record.InvoiceDate,
+            TotalAmount = record.TotalAmount,
+            Currency = record.Currency,
+            ExtractionModel = record.ExtractionModel,
+            ExtractionCompletedAtUtc = record.ExtractionCompletedAtUtc,
+            RawExtractionJson = record.RawExtractionJson,
+            ExtractionWarnings = record.ExtractionWarnings,
+            ExtractionError = record.ExtractionError,
+            IsSupplierMatched = record.IsSupplierMatched,
+            RequiresSupplierReview = record.RequiresSupplierReview,
+            SupplierMatchedBy = record.SupplierMatchedBy,
+            InternalSupplierId = record.InternalSupplierId,
+            ExactSupplierId = record.ExactSupplierId,
+            SupplierMatchMessage = record.SupplierMatchMessage,
+            ExactPostingStatus = record.ExactPostingStatus,
+            ExactDocumentId = record.ExactDocumentId,
+            PostedToExactAtUtc = record.PostedToExactAtUtc,
+            ExactPostingError = record.ExactPostingError,
+            CanCreateSupplier = record.CanCreateSupplier,
+            HasNewBankDetails = record.HasNewBankDetails,
+            MatchReasons = record.MatchReasons,
+            ReviewSummary = CreateReviewSummary(record)
+        };
     }
 }

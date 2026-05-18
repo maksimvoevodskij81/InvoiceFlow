@@ -59,5 +59,16 @@ public sealed class UploadedInvoiceRecord
     public string? SupplierBankAccount { get; set; }
     public string? SupplierBicCode { get; set; }
     public bool HasNewBankDetails { get; set; }
+
+    public string? ExtractionModel { get; set; }
+
+    public DateTime? ExtractionCompletedAtUtc { get; set; }
+
+    public string? RawExtractionJson { get; set; }
+
+    public List<string> ExtractionWarnings { get; set; } = new();
+
+    public string? ExtractionError { get; set; }
+
     public List<string> MatchReasons { get; set; } = new(); 
 }
