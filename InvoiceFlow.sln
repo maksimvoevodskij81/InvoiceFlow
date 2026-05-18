@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{21CEA5E7-9464-4B50-BAE9-8567AF78A860}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		CLAUDE.md = CLAUDE.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InvoiceFlow.Api.Tests", "InvoiceFlow.Api.Tests\InvoiceFlow.Api.Tests.csproj", "{AC382EAC-A1AB-4F6F-861F-DAD2588C5D82}"
