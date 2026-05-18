@@ -1,4 +1,5 @@
 using InvoiceFlow.Api.Features.Exact;
+using InvoiceFlow.Api.Features.Invoices.Extraction;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.Review;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
@@ -20,7 +21,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IInvoiceFolderReader, LocalInvoiceFolderReader>();
-builder.Services.AddSingleton<IInvoiceParser, FakeInvoiceParser>();
+builder.Services.AddSingleton<ILlmInvoiceExtractor, DemoLlmInvoiceExtractor>();
+builder.Services.AddScoped<IInvoiceParser, LlmInvoiceParser>();
 builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();

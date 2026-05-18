@@ -1,5 +1,6 @@
 ﻿using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Exact;
+using InvoiceFlow.Api.Features.Invoices.Extraction;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
 using InvoiceFlow.Api.Features.Suppliers.Matching;
@@ -61,6 +62,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         }
 
         var extractionModel = _invoiceParser.GetType().Name;
+        LlmExtractionResult? llmResult = null;
         var invoiceId = Guid.NewGuid().ToString();
         var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(file, cancellationToken);
 
@@ -73,11 +75,13 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             var uploadedFile = CreateUploadedFolderInvoiceFile(file, storedFilePath);
             var parseResult = await _invoiceParser.ParseAsync(uploadedFile, cancellationToken);
 
+            llmResult = (_invoiceParser as LlmInvoiceParser)?.LastExtractionResult;
+
             List<string> missingFields = _invoiceParseResultValidator.Validate(parseResult);
 
             if (missingFields.Count > 0)
             {
-                var invalidRecord = CreateInvalidRecord(record, parseResult, missingFields, extractionModel);
+                var invalidRecord = CreateInvalidRecord(record, parseResult, missingFields, extractionModel, llmResult);
 
                 await _uploadedInvoiceStore.SaveAsync(invalidRecord, cancellationToken);
 
@@ -127,7 +131,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                 !supplierMatchResult.RequiresReview &&
                 !string.IsNullOrWhiteSpace(supplierMatchResult.ExactSupplierId);
 
-            var parsedRecord = CreateParsedRecord(record, parseResult, supplierMatchResult, canCreateSupplier, extractionModel);
+            var parsedRecord = CreateParsedRecord(record, parseResult, supplierMatchResult, canCreateSupplier, extractionModel, llmResult);
 
             await _uploadedInvoiceStore.SaveAsync(parsedRecord, cancellationToken);
 
@@ -153,11 +157,11 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         {
             record.Status = InvoiceStatuses.Failed;
             record.Message = InvoiceMessages.ParsingFailed;
-            record.ExtractionCompletedAtUtc = DateTime.UtcNow;
-            record.ExtractionModel = extractionModel;
-            record.RawExtractionJson = null;
-            record.ExtractionWarnings = new List<string>();
-            record.ExtractionError = InvoiceMessages.ParsingFailed;
+            record.ExtractionCompletedAtUtc = llmResult?.Metadata.ExtractedAtUtc ?? DateTime.UtcNow;
+            record.ExtractionModel = llmResult?.Metadata.Model ?? extractionModel;
+            record.RawExtractionJson = llmResult?.Raw.RawJson;
+            record.ExtractionWarnings = llmResult?.Metadata.Warnings.Select(w => $"{w.Type} [{w.Field}]: {w.Message}").ToList() ?? new List<string>();
+            record.ExtractionError = llmResult?.Error is { } e ? $"{e.Code}: {e.Message}" : InvoiceMessages.ParsingFailed;
 
             await _uploadedInvoiceStore.SaveAsync(record, cancellationToken);
 
@@ -245,7 +249,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     UploadedInvoiceRecord processingRecord,
     InvoiceParseResult parseResult,
     List<string> missingFields,
-    string extractionModel)
+    string extractionModel,
+    LlmExtractionResult? llmResult)
     {
         ArgumentNullException.ThrowIfNull(processingRecord);
         ArgumentNullException.ThrowIfNull(parseResult);
@@ -275,11 +280,11 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             ExactDocumentId = null,
             PostedToExactAtUtc = null,
             ExactPostingError = null,
-            ExtractionCompletedAtUtc = DateTime.UtcNow,
-            ExtractionModel = extractionModel,
-            RawExtractionJson = null,
-            ExtractionWarnings = new List<string>(),
-            ExtractionError = null
+            ExtractionCompletedAtUtc = llmResult?.Metadata.ExtractedAtUtc ?? DateTime.UtcNow,
+            ExtractionModel = llmResult?.Metadata.Model ?? extractionModel,
+            RawExtractionJson = llmResult?.Raw.RawJson,
+            ExtractionWarnings = llmResult?.Metadata.Warnings.Select(w => $"{w.Type} [{w.Field}]: {w.Message}").ToList() ?? new List<string>(),
+            ExtractionError = llmResult?.Error is { } e ? $"{e.Code}: {e.Message}" : null
         };
     }
 
@@ -288,7 +293,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     InvoiceParseResult parseResult,
     SupplierMatchResult supplierMatchResult,
     bool canCreateSupplier,
-    string extractionModel)
+    string extractionModel,
+    LlmExtractionResult? llmResult)
     {
         ArgumentNullException.ThrowIfNull(processingRecord);
         ArgumentNullException.ThrowIfNull(parseResult);
@@ -345,11 +351,11 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             ExactPostingError = null,
             CanCreateSupplier = canCreateSupplier,
             HasNewBankDetails = supplierMatchResult.HasNewBankDetails,
-            ExtractionCompletedAtUtc = DateTime.UtcNow,
-            ExtractionModel = extractionModel,
-            RawExtractionJson = null,
-            ExtractionWarnings = new List<string>(),
-            ExtractionError = null,
+            ExtractionCompletedAtUtc = llmResult?.Metadata.ExtractedAtUtc ?? DateTime.UtcNow,
+            ExtractionModel = llmResult?.Metadata.Model ?? extractionModel,
+            RawExtractionJson = llmResult?.Raw.RawJson,
+            ExtractionWarnings = llmResult?.Metadata.Warnings.Select(w => $"{w.Type} [{w.Field}]: {w.Message}").ToList() ?? new List<string>(),
+            ExtractionError = llmResult?.Error is { } e ? $"{e.Code}: {e.Message}" : null,
             MatchReasons = supplierMatchResult.Reasons
         };
     }
