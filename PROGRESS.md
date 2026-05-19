@@ -4,9 +4,7 @@
 - [x] PR 1 — LLM extraction foundation (models, ILlmInvoiceExtractor, LlmInvoiceParser, PdfPigTextExtractor, DI wiring)
 - [x] PR 2 — ClaudePromptBuilder (Build(text) → ClaudePrompt with system prompt + user message)
 - [x] PR 3 — ClaudeInvoiceExtractor with FakeHttpMessageHandler tests (HTTP error, malformed JSON, cancellation)
-
-## In Progress
-- [ ] PR 4 — Config-based DI switch (Demo vs Real mode)
+- [x] PR 4 — Config-based DI switch (Demo vs Real mode, startup validation via ClaudeOptionsValidator)
 
 ## Planned
 - [ ] PR 5 — Remove as LlmInvoiceParser cast (optional cleanup)
