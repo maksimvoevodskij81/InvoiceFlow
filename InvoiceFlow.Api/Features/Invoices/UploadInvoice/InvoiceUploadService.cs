@@ -75,7 +75,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             var uploadedFile = CreateUploadedFolderInvoiceFile(file, storedFilePath);
             var parseResult = await _invoiceParser.ParseAsync(uploadedFile, cancellationToken);
 
-            llmResult = (_invoiceParser as LlmInvoiceParser)?.LastExtractionResult;
+            llmResult = (_invoiceParser as IExtractionMetadataProvider)?.LastExtractionResult;
 
             List<string> missingFields = _invoiceParseResultValidator.Validate(parseResult);
 

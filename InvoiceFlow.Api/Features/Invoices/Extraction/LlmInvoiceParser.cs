@@ -2,7 +2,7 @@ using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 
 namespace InvoiceFlow.Api.Features.Invoices.Extraction;
 
-public sealed class LlmInvoiceParser : IInvoiceParser
+public sealed class LlmInvoiceParser : IInvoiceParser, IExtractionMetadataProvider
 {
     private readonly ILlmInvoiceExtractor _extractor;
 
