@@ -2,12 +2,12 @@
 
 ## Done
 - [x] PR 1 — LLM extraction foundation (models, ILlmInvoiceExtractor, LlmInvoiceParser, PdfPigTextExtractor, DI wiring)
+- [x] PR 2 — ClaudePromptBuilder (Build(text) → ClaudePrompt with system prompt + user message)
 
 ## In Progress
-- [ ] PR 2 — ClaudePromptBuilder
+- [ ] PR 3 — ClaudeInvoiceExtractor with FakeHttpMessageHandler tests
 
 ## Planned
-- [ ] PR 3 — ClaudeInvoiceExtractor with FakeHttpMessageHandler tests
 - [ ] PR 4 — Config-based DI switch (Demo vs Real mode)
 - [ ] PR 5 — Remove as LlmInvoiceParser cast (optional cleanup)
 
