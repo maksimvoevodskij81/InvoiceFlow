@@ -12,6 +12,7 @@ using InvoiceFlow.Api.Infrastructure.Exact;
 using InvoiceFlow.Api.Infrastructure.Extraction;
 using InvoiceFlow.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +24,26 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IInvoiceFolderReader, LocalInvoiceFolderReader>();
 builder.Services.AddSingleton<IInvoiceTextExtractor, PdfPigTextExtractor>();
-builder.Services.AddSingleton<ILlmInvoiceExtractor, DemoLlmInvoiceExtractor>();
+
+var claudeMode = builder.Configuration["Claude:Mode"] ?? "Demo";
+
+if (claudeMode == "Real")
+{
+    builder.Services.AddOptions<ClaudeOptions>()
+        .Bind(builder.Configuration.GetSection("Claude"))
+        .ValidateOnStart();
+    builder.Services.AddSingleton<IValidateOptions<ClaudeOptions>, ClaudeOptionsValidator>();
+    builder.Services.AddSingleton<ClaudePromptBuilder>();
+    builder.Services.AddHttpClient<ILlmInvoiceExtractor, ClaudeInvoiceExtractor>(client =>
+    {
+        client.BaseAddress = new Uri("https://api.anthropic.com/");
+    });
+}
+else
+{
+    builder.Services.AddSingleton<ILlmInvoiceExtractor, DemoLlmInvoiceExtractor>();
+}
+
 builder.Services.AddScoped<IInvoiceParser, LlmInvoiceParser>();
 builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
