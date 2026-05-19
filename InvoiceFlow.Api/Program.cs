@@ -9,6 +9,7 @@ using InvoiceFlow.Api.Features.Suppliers.Matching;
 using InvoiceFlow.Api.Infrastructure;
 using InvoiceFlow.Api.Infrastructure.Background;
 using InvoiceFlow.Api.Infrastructure.Exact;
+using InvoiceFlow.Api.Infrastructure.Extraction;
 using InvoiceFlow.Api.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSingleton<IInvoiceFolderReader, LocalInvoiceFolderReader>();
+builder.Services.AddSingleton<IInvoiceTextExtractor, PdfPigTextExtractor>();
 builder.Services.AddSingleton<ILlmInvoiceExtractor, DemoLlmInvoiceExtractor>();
 builder.Services.AddScoped<IInvoiceParser, LlmInvoiceParser>();
 builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
