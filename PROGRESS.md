@@ -11,6 +11,8 @@
 
 - [x] PR 7 — MappingBasedSupplierMatcher (IBAN + name+postcode + name+addr+postcode fingerprints; wired into DI)
 
+- [x] PR 8 — JWT Bearer auth + policy-based authorization (Authentication:Enabled flag, 4 policies, Swagger Bearer, 9 AuthorizationTests)
+
 ## Not started yet
 - [ ] Supplier scored matching (KvK / VAT / IBAN / fuzzy name)
 - [ ] Human correction flow (AcceptedInvoiceFields)
