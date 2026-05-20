@@ -13,9 +13,10 @@
 
 - [x] PR 8 — JWT Bearer auth + policy-based authorization (Authentication:Enabled flag, 4 policies, Swagger Bearer, 9 AuthorizationTests)
 
-## Not started yet
 - [x] PR 9 — Robust bank account fingerprinting (IBAN: vs BANKACCOUNT: prefix, international supplier support, 8+1 tests)
+- [x] PR 10 — Strengthen ClaudePromptBuilder for international invoices (ISO 4217 currency, exact bank account copy, KvK/VAT Dutch-only, no-guess rule, G/L prohibition, 12 tests)
 
+## Not started yet
 - [ ] Supplier scored matching (KvK/VAT — NL only, skip if empty; see context below)
 - [ ] Human correction flow (AcceptedInvoiceFields)
 - [ ] Real Claude API integration test with PDF
