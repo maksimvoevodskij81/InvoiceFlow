@@ -14,6 +14,24 @@
 - [x] PR 8 — JWT Bearer auth + policy-based authorization (Authentication:Enabled flag, 4 policies, Swagger Bearer, 9 AuthorizationTests)
 
 ## Not started yet
-- [ ] Supplier scored matching (KvK / VAT / IBAN / fuzzy name)
+- [ ] Supplier scored matching (revised — see context below)
 - [ ] Human correction flow (AcceptedInvoiceFields)
 - [ ] Real Claude API integration test with PDF
+- [ ] G/L Account suggestion (future — stays manual input during review for now)
+
+## Supplier matching context (from real Exact Online data)
+
+Suppliers are international (NL, UK, India, and others). KvK and VAT are often
+empty for non-Dutch suppliers. IBAN formats vary: NL IBAN, GB IBAN, Indian
+account numbers. Matching must not assume any single field is always present.
+
+Revised matching priority:
+1. KvK fingerprint  → auto match, RequiresReview = false  (NL suppliers only — skip if empty)
+2. VAT fingerprint  → auto match, RequiresReview = false  (NL suppliers only — skip if empty)
+3. IBAN fingerprint → requires review, RequiresReview = true  (all suppliers, most common signal)
+4. Fuzzy name + country → requires review  (fallback when no IBAN)
+5. No match → create new supplier candidate
+
+G/L Account (grootboekrekening) cannot be extracted by LLM. It must come from
+the supplier profile in Exact or from human input during review. No automation
+planned until supplier profiles are queryable.
