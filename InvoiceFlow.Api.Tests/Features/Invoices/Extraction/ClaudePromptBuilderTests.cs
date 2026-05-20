@@ -71,4 +71,47 @@ public sealed class ClaudePromptBuilderTests
 
         Assert.Contains("JSON", prompt.SystemPrompt);
     }
+
+    [Fact]
+    public void Build_ShouldInstructCopyBankAccountAsIs_InSystemPrompt()
+    {
+        var prompt = _builder.Build("any text");
+
+        Assert.Contains("exactly as it appears", prompt.SystemPrompt);
+    }
+
+    [Fact]
+    public void Build_ShouldInstructKvkAndVatAsDutchOnly_InSystemPrompt()
+    {
+        var prompt = _builder.Build("any text");
+
+        Assert.Contains("Dutch", prompt.SystemPrompt);
+    }
+
+    [Fact]
+    public void Build_ShouldInstructDoNotGuess_InSystemPrompt()
+    {
+        var prompt = _builder.Build("any text");
+
+        Assert.Contains("Do not guess", prompt.SystemPrompt);
+    }
+
+    [Fact]
+    public void Build_ShouldInstructCurrencyAsIsoCode_InSystemPrompt()
+    {
+        var prompt = _builder.Build("any text");
+
+        Assert.Contains("ISO 4217", prompt.SystemPrompt);
+    }
+
+    [Fact]
+    public void Build_ShouldWrapInvoiceTextWithInstruction_InUserMessage()
+    {
+        const string invoiceText = "Supplier: Acme BV";
+
+        var prompt = _builder.Build(invoiceText);
+
+        Assert.Contains("Extract invoice data from the following text", prompt.UserMessage);
+        Assert.Contains(invoiceText, prompt.UserMessage);
+    }
 }

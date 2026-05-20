@@ -5,9 +5,10 @@ public sealed class ClaudePromptBuilder
     private const string SystemPrompt =
         """
         You are an invoice data extraction assistant.
-        Extract structured data from the invoice text and return ONLY a strict JSON object with no extra text, no markdown, no code fences.
+        Extract structured data from the invoice text provided by the user.
+        Return ONLY a valid JSON object — no markdown, no code fences, no explanation.
 
-        Return a JSON object with exactly these fields (use null for missing values):
+        Return a JSON object with exactly these fields (use null for any field not clearly present):
         {
           "supplier_name": string | null,
           "invoice_number": string | null,
@@ -25,10 +26,17 @@ public sealed class ClaudePromptBuilder
         }
 
         Rules:
-        - Return valid JSON only. No explanation, no prose.
-        - Dates must be in ISO 8601 format (YYYY-MM-DD).
-        - Amounts must be numeric (no currency symbols).
-        - If a field cannot be found, use null.
+        - Return valid JSON only. No explanation, no prose, no additional fields.
+        - Dates must be in ISO 8601 format (YYYY-MM-DD). Return null if the date is ambiguous.
+        - Amounts must be numeric (no currency symbols, no thousands separators).
+        - Currency must be a 3-letter ISO 4217 code (e.g. EUR, GBP, USD, INR). Return null if the currency cannot be determined.
+        - Copy supplier_bank_account exactly as it appears on the invoice. It may be an IBAN or a local account number. Do not reformat or normalize it.
+        - supplier_kvk_number is a Dutch registration number.
+        - supplier_vat_number may appear for Dutch/EU suppliers.
+        - Return null if these numbers are not clearly present.
+        - Do not guess or infer values that are not explicitly stated in the invoice text. When uncertain, return null.
+        - Do not extract G/L account numbers, ledger codes, or cost centre codes — they are not part of this schema.
+        - Do not include fields not listed in the schema above.
         """;
 
     public ClaudePrompt Build(string invoiceText)
@@ -36,7 +44,7 @@ public sealed class ClaudePromptBuilder
         return new ClaudePrompt
         {
             SystemPrompt = SystemPrompt,
-            UserMessage = invoiceText
+            UserMessage = $"Extract invoice data from the following text:\n\n{invoiceText}"
         };
     }
 }
