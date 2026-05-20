@@ -771,6 +771,107 @@ public sealed class InvoiceUploadServiceTests
             Directory.Delete(tempRoot, true);
         }
     }
+    [Fact]
+    public async Task UploadAsync_ShouldReturnExtractionFailed_WhenLlmExtractorReturnsFailed()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var service = new InvoiceUploadService(
+                new LlmInvoiceParser(new StubFailingLlmExtractor("MalformedJson", "Could not parse LLM response.")),
+                new FakeSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                new FakeExactPostOutboxWriter(),
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator());
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+            var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.ExtractionFailed, response.Status);
+            Assert.NotNull(savedRecord);
+            Assert.Equal(InvoiceStatuses.ExtractionFailed, savedRecord!.Status);
+            Assert.Equal(InvoiceMessages.ExtractionFailed, savedRecord.Message);
+            Assert.NotNull(savedRecord.ExtractionError);
+            Assert.Contains("MalformedJson", savedRecord.ExtractionError);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldReturnExtractionFailed_WhenLlmExtractorThrows()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var service = new InvoiceUploadService(
+                new LlmInvoiceParser(new ThrowingLlmExtractor("Unexpected extractor crash")),
+                new FakeSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                new FakeExactPostOutboxWriter(),
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator());
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, CancellationToken.None);
+            var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.ExtractionFailed, response.Status);
+            Assert.NotNull(savedRecord);
+            Assert.Equal(InvoiceStatuses.ExtractionFailed, savedRecord!.Status);
+            Assert.Equal(InvoiceMessages.ExtractionFailed, savedRecord.Message);
+            Assert.NotNull(savedRecord.ExtractionError);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
     private static IFormFile CreatePdfFormFile(byte[] bytes, string fileName)
     {
         var stream = new MemoryStream(bytes);
@@ -923,5 +1024,44 @@ file sealed class ParserWithBankDetails : IInvoiceParser
             SupplierBankAccount = "NL91ABNA0417164300",
             SupplierBicCode = "ABNANL2A"
         });
+    }
+}
+
+file sealed class StubFailingLlmExtractor : ILlmInvoiceExtractor
+{
+    private readonly string _code;
+    private readonly string _message;
+
+    public StubFailingLlmExtractor(string code, string message)
+    {
+        _code = code;
+        _message = message;
+    }
+
+    public Task<LlmExtractionResult> ExtractAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new LlmExtractionResult
+        {
+            IsSuccessful = false,
+            Raw = new LlmRawExtractionResult { RawJson = null },
+            Fields = null,
+            Metadata = new ExtractionMetadata { Model = "test", ExtractedAtUtc = DateTime.UtcNow, Warnings = [] },
+            Error = new ExtractionError { Code = _code, Message = _message }
+        });
+    }
+}
+
+file sealed class ThrowingLlmExtractor : ILlmInvoiceExtractor
+{
+    private readonly string _message;
+
+    public ThrowingLlmExtractor(string message)
+    {
+        _message = message;
+    }
+
+    public Task<LlmExtractionResult> ExtractAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default)
+    {
+        throw new InvalidOperationException(_message);
     }
 }

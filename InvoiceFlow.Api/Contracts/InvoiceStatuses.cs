@@ -10,4 +10,5 @@ public static class InvoiceStatuses
     public const string Invalid = "Invalid";
     public const string ReadyToPost = "ReadyToPost";
     public const string NeedsReview = "NeedsReview";
+    public const string ExtractionFailed = "ExtractionFailed";
 }

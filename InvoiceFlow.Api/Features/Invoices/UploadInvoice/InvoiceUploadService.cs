@@ -77,6 +77,21 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
 
             llmResult = (_invoiceParser as IExtractionMetadataProvider)?.LastExtractionResult;
 
+            if (llmResult is { IsSuccessful: false })
+            {
+                var extractionFailedRecord = CreateExtractionFailedRecord(record, extractionModel, llmResult);
+
+                await _uploadedInvoiceStore.SaveAsync(extractionFailedRecord, cancellationToken);
+
+                return new UploadInvoiceAcceptedResponse
+                {
+                    InvoiceId = invoiceId,
+                    Status = InvoiceStatuses.ExtractionFailed,
+                    Message = InvoiceMessages.ExtractionFailed,
+                    MissingFields = new List<string>()
+                };
+            }
+
             List<string> missingFields = _invoiceParseResultValidator.Validate(parseResult);
 
             if (missingFields.Count > 0)
@@ -242,6 +257,32 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             Message = InvoiceMessages.UploadReceived,
             CreatedAtUtc = DateTime.UtcNow,
             FileHash = fileHash
+        };
+    }
+
+    private static UploadedInvoiceRecord CreateExtractionFailedRecord(
+    UploadedInvoiceRecord processingRecord,
+    string extractionModel,
+    LlmExtractionResult llmResult)
+    {
+        ArgumentNullException.ThrowIfNull(processingRecord);
+        ArgumentNullException.ThrowIfNull(llmResult);
+
+        return new UploadedInvoiceRecord
+        {
+            InvoiceId = processingRecord.InvoiceId,
+            OriginalFileName = processingRecord.OriginalFileName,
+            StoredFilePath = processingRecord.StoredFilePath,
+            Status = InvoiceStatuses.ExtractionFailed,
+            Message = InvoiceMessages.ExtractionFailed,
+            CreatedAtUtc = processingRecord.CreatedAtUtc,
+            FileHash = processingRecord.FileHash,
+            ExtractionCompletedAtUtc = llmResult.Metadata.ExtractedAtUtc,
+            ExtractionModel = llmResult.Metadata.Model ?? extractionModel,
+            RawExtractionJson = llmResult.Raw.RawJson,
+            ExtractionWarnings = llmResult.Metadata.Warnings
+                .Select(w => $"{w.Type} [{w.Field}]: {w.Message}").ToList(),
+            ExtractionError = llmResult.Error is { } e ? $"{e.Code}: {e.Message}" : null
         };
     }
 
