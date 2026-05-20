@@ -45,7 +45,7 @@ else
 }
 
 builder.Services.AddScoped<IInvoiceParser, LlmInvoiceParser>();
-builder.Services.AddSingleton<ISupplierMatcher, FakeSupplierMatcher>();
+builder.Services.AddScoped<ISupplierMatcher, MappingBasedSupplierMatcher>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 builder.Services.AddSingleton<IUploadedInvoiceFileStore, LocalUploadedInvoiceFileStore>();
 builder.Services.AddScoped<IInvoiceUploadService, InvoiceUploadService>();

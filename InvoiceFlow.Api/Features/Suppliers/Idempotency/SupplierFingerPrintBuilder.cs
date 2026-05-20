@@ -16,6 +16,27 @@ public sealed class SupplierFingerprintBuilder
         return $"NAME:{name}|POSTCODE:{postcode}|COUNTRY:{country}";
     }
 
+    public string BuildNamePostcode(InvoiceParseResult invoice)
+    {
+        ArgumentNullException.ThrowIfNull(invoice);
+
+        string name = NormalizeText(invoice.SupplierName);
+        string postcode = NormalizeText(invoice.SupplierPostcode);
+
+        return $"NAME:{name}|POSTCODE:{postcode}";
+    }
+
+    public string BuildNameAddressPostcode(InvoiceParseResult invoice)
+    {
+        ArgumentNullException.ThrowIfNull(invoice);
+
+        string name = NormalizeText(invoice.SupplierName);
+        string addr = NormalizeText(invoice.SupplierAddressLine);
+        string postcode = NormalizeText(invoice.SupplierPostcode);
+
+        return $"NAME:{name}|ADDR:{addr}|POSTCODE:{postcode}";
+    }
+
     private static string NormalizeText(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

@@ -79,6 +79,7 @@ public class SupplierCreateWorker : BackgroundService
                 var parseLikeModel = new InvoiceParseResult
                 {
                     SupplierName = invoice.SupplierName ?? string.Empty,
+                    SupplierAddressLine = invoice.SupplierAddressLine,
                     SupplierPostcode = invoice.SupplierPostcode,
                     SupplierCountry = invoice.SupplierCountry,
                     SupplierBankAccount = invoice.SupplierBankAccount
@@ -134,6 +135,22 @@ public class SupplierCreateWorker : BackgroundService
                         supplierFingerprint,
                         exactSupplierId,
                         cancellationToken);
+
+                    if (!string.IsNullOrWhiteSpace(invoice.SupplierName) && !string.IsNullOrWhiteSpace(invoice.SupplierPostcode))
+                    {
+                        await supplierMappingStore.SaveAsync(
+                            supplierFingerprintBuilder.BuildNamePostcode(parseLikeModel),
+                            exactSupplierId,
+                            cancellationToken);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(invoice.SupplierName) && !string.IsNullOrWhiteSpace(invoice.SupplierAddressLine) && !string.IsNullOrWhiteSpace(invoice.SupplierPostcode))
+                    {
+                        await supplierMappingStore.SaveAsync(
+                            supplierFingerprintBuilder.BuildNameAddressPostcode(parseLikeModel),
+                            exactSupplierId,
+                            cancellationToken);
+                    }
                 }
 
                 if (!string.IsNullOrWhiteSpace(bankFingerprint))
