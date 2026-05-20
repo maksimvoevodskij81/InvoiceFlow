@@ -9,6 +9,8 @@
 - [x] PR 5 — Replace as LlmInvoiceParser cast with IExtractionMetadataProvider (middle-ground: interface cast, 3 files)
 - [x] PR 6 — ExtractionFailed as first-class status (early return in InvoiceUploadService before validation, 2 focused tests)
 
+- [x] PR 7 — MappingBasedSupplierMatcher (IBAN + name+postcode + name+addr+postcode fingerprints; wired into DI)
+
 ## Not started yet
 - [ ] Supplier scored matching (KvK / VAT / IBAN / fuzzy name)
 - [ ] Human correction flow (AcceptedInvoiceFields)
