@@ -1,4 +1,5 @@
-﻿using InvoiceFlow.Api.Contracts;
+﻿using InvoiceFlow.Api.Auth;
+using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Invoices;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
@@ -6,6 +7,7 @@ using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
 using InvoiceFlow.Api.Features.Invoices.Review;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.Matching;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace InvoiceFlow.Api.Controllers;
@@ -52,6 +54,7 @@ public sealed class InvoicesController : ControllerBase
         _invoiceReviewService = invoiceReviewService;
     }
 
+    [Authorize(Policy = PolicyNames.InvoiceUploader)]
     [HttpPost("upload")]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(UploadInvoiceAcceptedResponse), StatusCodes.Status202Accepted)]
@@ -82,6 +85,7 @@ public sealed class InvoicesController : ControllerBase
         return Accepted(response);
     }
 
+    [Authorize(Policy = PolicyNames.InvoiceAdmin)]
     [HttpPost("import-from-folder")]
     [ProducesResponseType(typeof(ImportInvoicesFromFolderResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -121,6 +125,7 @@ public sealed class InvoicesController : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Policy = PolicyNames.InvoiceReader)]
     [HttpGet("{id}/status")]
     [ProducesResponseType(typeof(GetInvoiceStatusResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -141,6 +146,7 @@ public sealed class InvoicesController : ControllerBase
     }
 
 
+    [Authorize(Policy = PolicyNames.InvoiceReader)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<InvoiceListItemResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<InvoiceListItemResponse>>> List(
@@ -163,6 +169,7 @@ public sealed class InvoicesController : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Policy = PolicyNames.InvoiceReader)]
     [HttpGet("{id}")]
     [ProducesResponseType(typeof(GetInvoiceDetailsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -182,6 +189,7 @@ public sealed class InvoicesController : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Policy = PolicyNames.InvoiceReviewer)]
     [HttpPost("{id}/review/approve")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -206,6 +214,7 @@ public sealed class InvoicesController : ControllerBase
         }
     }
 
+    [Authorize(Policy = PolicyNames.InvoiceReviewer)]
     [HttpPost("{id}/review/reject")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
