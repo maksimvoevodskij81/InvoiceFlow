@@ -14,7 +14,9 @@
 - [x] PR 8 — JWT Bearer auth + policy-based authorization (Authentication:Enabled flag, 4 policies, Swagger Bearer, 9 AuthorizationTests)
 
 ## Not started yet
-- [ ] Supplier scored matching (revised — see context below)
+- [x] PR 9 — Robust bank account fingerprinting (IBAN: vs BANKACCOUNT: prefix, international supplier support, 8+1 tests)
+
+- [ ] Supplier scored matching (KvK/VAT — NL only, skip if empty; see context below)
 - [ ] Human correction flow (AcceptedInvoiceFields)
 - [ ] Real Claude API integration test with PDF
 - [ ] G/L Account suggestion (future — stays manual input during review for now)
