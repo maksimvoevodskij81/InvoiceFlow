@@ -15,6 +15,7 @@
 
 - [x] PR 9 — Robust bank account fingerprinting (IBAN: vs BANKACCOUNT: prefix, international supplier support, 8+1 tests)
 - [x] PR 10 — Strengthen ClaudePromptBuilder for international invoices (ISO 4217 currency, exact bank account copy, KvK/VAT Dutch-only, no-guess rule, G/L prohibition, 12 tests)
+- [x] PR 11 — Harden ClaudeInvoiceExtractor (IsRetryable on all paths, MissingApiKey guard, NetworkError catch, EnvelopeParseError, IsRetryable theory test, 5 new tests)
 
 ## Not started yet
 - [ ] Supplier scored matching (KvK/VAT — NL only, skip if empty; see context below)
