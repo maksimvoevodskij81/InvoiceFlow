@@ -95,6 +95,72 @@ public sealed class ClaudeInvoiceExtractorTests
     }
 
     [Fact]
+    public async Task ExtractAsync_ShouldReturnMissingApiKeyFailure_WhenApiKeyIsEmpty()
+    {
+        var extractor = BuildExtractor(apiKey: "");
+
+        var result = await extractor.ExtractAsync(AnyFile);
+
+        Assert.False(result.IsSuccessful);
+        Assert.Equal("MissingApiKey", result.Error!.Code);
+        Assert.False(result.Error.IsRetryable);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_ShouldReturnNetworkErrorFailure_WhenHttpRequestThrows()
+    {
+        var extractor = BuildExtractorWithThrowingHandler(new HttpRequestException("Connection refused."));
+
+        var result = await extractor.ExtractAsync(AnyFile);
+
+        Assert.False(result.IsSuccessful);
+        Assert.Equal("NetworkError", result.Error!.Code);
+        Assert.True(result.Error.IsRetryable);
+    }
+
+    [Theory]
+    [InlineData(429, true)]
+    [InlineData(500, true)]
+    [InlineData(503, true)]
+    [InlineData(400, false)]
+    [InlineData(401, false)]
+    [InlineData(403, false)]
+    public async Task ExtractAsync_ShouldSetIsRetryable_BasedOnHttpStatusCode(int statusCode, bool expectedRetryable)
+    {
+        var extractor = BuildExtractor(statusCode: (HttpStatusCode)statusCode);
+
+        var result = await extractor.ExtractAsync(AnyFile);
+
+        Assert.False(result.IsSuccessful);
+        Assert.Equal("HttpError", result.Error!.Code);
+        Assert.Equal(expectedRetryable, result.Error.IsRetryable);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_ShouldSetIsRetryableToFalse_ForMalformedJson()
+    {
+        var extractor = BuildExtractor(responseBody: WrapInClaudeEnvelope("this is not json at all"));
+
+        var result = await extractor.ExtractAsync(AnyFile);
+
+        Assert.False(result.IsSuccessful);
+        Assert.Equal("MalformedJson", result.Error!.Code);
+        Assert.False(result.Error.IsRetryable);
+    }
+
+    [Fact]
+    public async Task ExtractAsync_ShouldReturnEnvelopeParseError_WhenClaudeEnvelopeIsMalformed()
+    {
+        var extractor = BuildExtractor(responseBody: "this is not valid json");
+
+        var result = await extractor.ExtractAsync(AnyFile);
+
+        Assert.False(result.IsSuccessful);
+        Assert.Equal("EnvelopeParseError", result.Error!.Code);
+        Assert.False(result.Error.IsRetryable);
+    }
+
+    [Fact]
     public async Task ExtractAsync_ShouldRecordModelName_FromOptions()
     {
         var claudeJson = """{"supplier_name":"Test BV"}""";
@@ -108,11 +174,20 @@ public sealed class ClaudeInvoiceExtractorTests
     private static ClaudeInvoiceExtractor BuildExtractor(
         string? responseBody = null,
         HttpStatusCode statusCode = HttpStatusCode.OK,
-        string model = "claude-test")
+        string model = "claude-test",
+        string apiKey = "test-key")
     {
         var handler = new FakeHttpMessageHandler(statusCode, responseBody ?? "{}");
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.anthropic.com/") };
-        var options = Options.Create(new ClaudeOptions { ApiKey = "test-key", Model = model });
+        var options = Options.Create(new ClaudeOptions { ApiKey = apiKey, Model = model });
+        return new ClaudeInvoiceExtractor(new FakeInvoiceTextExtractor(), new ClaudePromptBuilder(), httpClient, options);
+    }
+
+    private static ClaudeInvoiceExtractor BuildExtractorWithThrowingHandler(HttpRequestException exception)
+    {
+        var handler = new ThrowingHttpMessageHandler(exception);
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.anthropic.com/") };
+        var options = Options.Create(new ClaudeOptions { ApiKey = "test-key", Model = "claude-test" });
         return new ClaudeInvoiceExtractor(new FakeInvoiceTextExtractor(), new ClaudePromptBuilder(), httpClient, options);
     }
 
@@ -151,4 +226,17 @@ file sealed class FakeHttpMessageHandler : HttpMessageHandler
 
         return Task.FromResult(response);
     }
+}
+
+file sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+{
+    private readonly HttpRequestException _exception;
+
+    public ThrowingHttpMessageHandler(HttpRequestException exception)
+    {
+        _exception = exception;
+    }
+
+    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        => throw _exception;
 }

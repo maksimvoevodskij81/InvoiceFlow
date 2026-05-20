@@ -33,6 +33,11 @@ public sealed class ClaudeInvoiceExtractor : ILlmInvoiceExtractor
 
     public async Task<LlmExtractionResult> ExtractAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(_options.ApiKey))
+        {
+            return Failure("MissingApiKey", "Claude API key is not configured.", isRetryable: false);
+        }
+
         try
         {
             var text = await _textExtractor.ExtractTextAsync(file, cancellationToken);
@@ -56,16 +61,28 @@ public sealed class ClaudeInvoiceExtractor : ILlmInvoiceExtractor
 
             if (!response.IsSuccessStatusCode)
             {
-                return Failure("HttpError", $"Claude API returned HTTP {(int)response.StatusCode}.");
+                int statusCode = (int)response.StatusCode;
+                bool isRetryable = statusCode == 429 || statusCode >= 500;
+                return Failure("HttpError", $"Claude API returned HTTP {statusCode}.", isRetryable);
             }
 
             var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
-            var envelope = JsonSerializer.Deserialize<ClaudeResponseBody>(responseJson, JsonOptions);
+
+            ClaudeResponseBody? envelope;
+            try
+            {
+                envelope = JsonSerializer.Deserialize<ClaudeResponseBody>(responseJson, JsonOptions);
+            }
+            catch (JsonException ex)
+            {
+                return Failure("EnvelopeParseError", ex.Message, isRetryable: false);
+            }
+
             var rawText = envelope?.Content?.FirstOrDefault()?.Text;
 
             if (rawText is null)
             {
-                return Failure("EmptyResponse", "Claude API returned no text content.");
+                return Failure("EmptyResponse", "Claude API returned no text content.", isRetryable: false);
             }
 
             LlmExtractedFields? fields;
@@ -81,7 +98,7 @@ public sealed class ClaudeInvoiceExtractor : ILlmInvoiceExtractor
                     Raw = new LlmRawExtractionResult { RawJson = rawText },
                     Fields = null,
                     Metadata = BuildMetadata(),
-                    Error = new ExtractionError { Code = "MalformedJson", Message = ex.Message }
+                    Error = new ExtractionError { Code = "MalformedJson", Message = ex.Message, IsRetryable = false }
                 };
             }
 
@@ -95,7 +112,11 @@ public sealed class ClaudeInvoiceExtractor : ILlmInvoiceExtractor
         }
         catch (OperationCanceledException)
         {
-            return Failure("Cancelled", "The extraction request was cancelled or timed out.");
+            return Failure("Cancelled", "The extraction request was cancelled or timed out.", isRetryable: false);
+        }
+        catch (HttpRequestException ex)
+        {
+            return Failure("NetworkError", ex.Message, isRetryable: true);
         }
     }
 
@@ -106,13 +127,13 @@ public sealed class ClaudeInvoiceExtractor : ILlmInvoiceExtractor
         Warnings = []
     };
 
-    private LlmExtractionResult Failure(string code, string message) => new()
+    private LlmExtractionResult Failure(string code, string message, bool isRetryable) => new()
     {
         IsSuccessful = false,
         Raw = new LlmRawExtractionResult { RawJson = null },
         Fields = null,
         Metadata = BuildMetadata(),
-        Error = new ExtractionError { Code = code, Message = message }
+        Error = new ExtractionError { Code = code, Message = message, IsRetryable = isRetryable }
     };
 
     private sealed class ClaudeRequestBody
