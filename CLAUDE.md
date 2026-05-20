@@ -88,7 +88,7 @@ ExtractionError
 
 These fields are used for audit/debugging and future LLM integration.
 
-Рус: raw LLM output should be preserved, but business decisions happen later.
+raw LLM output should be preserved, but business decisions happen later.
 
 Review workflow
 
@@ -122,6 +122,12 @@ Is it safe to use these bank details?
 Do not auto-post if bank details are new, changed, or conflicting.
 
 Future supplier matching may use scored matching:
+
+## Supplier profile notes
+- Suppliers are international — KvK/VAT often empty
+- G/L Account (grootboekrekening) is NOT extracted by LLM
+- G/L Account comes from supplier profile or human review
+- IBAN formats vary: NL, GB, IN and others
 
 KvK exact match = auto match
 VAT exact match = auto match

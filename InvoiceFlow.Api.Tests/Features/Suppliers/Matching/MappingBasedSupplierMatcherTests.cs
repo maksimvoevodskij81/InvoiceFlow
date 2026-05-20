@@ -93,6 +93,26 @@ public sealed class MappingBasedSupplierMatcherTests
     }
 
     [Fact]
+    public async Task MatchAsync_ShouldReturnMatchedWithReview_WhenNonIbanBankAccountMappingFound()
+    {
+        var bankStore = new FakeBankAccountMappingStore();
+        bankStore.Seed("BANKACCOUNT:50200012345678", "exact-004");
+
+        var result = await BuildMatcher(bankStore: bankStore).MatchAsync(
+            new InvoiceParseResult
+            {
+                SupplierName = "Tata Consultancy Services",
+                SupplierBankAccount = "502 000 123 456 78"
+            },
+            CancellationToken.None);
+
+        Assert.True(result.IsMatched);
+        Assert.True(result.RequiresReview);
+        Assert.Equal("exact-004", result.ExactSupplierId);
+        Assert.Equal(SupplierMatchSources.BankAccount, result.MatchedBy);
+    }
+
+    [Fact]
     public async Task MatchAsync_ShouldReturnNotMatched_WhenSupplierFieldsAreMissing()
     {
         var result = await BuildMatcher().MatchAsync(
