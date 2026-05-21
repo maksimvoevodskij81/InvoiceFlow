@@ -37,6 +37,42 @@ public sealed class SupplierFingerprintBuilder
         return $"NAME:{name}|ADDR:{addr}|POSTCODE:{postcode}";
     }
 
+    public string BuildKvK(string? kvkNumber)
+    {
+        if (string.IsNullOrWhiteSpace(kvkNumber))
+        {
+            return string.Empty;
+        }
+
+        string digits = new string(kvkNumber.Where(char.IsDigit).ToArray());
+
+        if (string.IsNullOrEmpty(digits))
+        {
+            return string.Empty;
+        }
+
+        return $"KVK:{digits}";
+    }
+
+    public string BuildVat(string? vatNumber)
+    {
+        if (string.IsNullOrWhiteSpace(vatNumber))
+        {
+            return string.Empty;
+        }
+
+        string normalized = Regex
+            .Replace(vatNumber, @"\s+", string.Empty)
+            .ToUpperInvariant();
+
+        if (string.IsNullOrEmpty(normalized))
+        {
+            return string.Empty;
+        }
+
+        return $"VAT:{normalized}";
+    }
+
     private static string NormalizeText(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))

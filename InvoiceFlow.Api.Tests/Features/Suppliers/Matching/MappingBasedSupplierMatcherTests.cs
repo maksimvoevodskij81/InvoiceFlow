@@ -127,6 +127,138 @@ public sealed class MappingBasedSupplierMatcherTests
 
         Assert.False(result.IsMatched);
     }
+
+    [Fact]
+    public async Task MatchAsync_ShouldReturnMatchedWithReview_WhenKvkMappingFound()
+    {
+        string fingerprint = new SupplierFingerprintBuilder().BuildKvK("12345678");
+        var supplierStore = new FakeSupplierMappingStore();
+        supplierStore.Seed(fingerprint, "exact-kvk-01");
+
+        var result = await BuildMatcher(supplierStore: supplierStore).MatchAsync(
+            new InvoiceParseResult
+            {
+                SupplierName      = "Acme B.V.",
+                SupplierKvKNumber = "12345678"
+            },
+            CancellationToken.None);
+
+        Assert.True(result.IsMatched);
+        Assert.True(result.RequiresReview);
+        Assert.Equal("exact-kvk-01", result.ExactSupplierId);
+        Assert.Equal(SupplierMatchSources.KvK, result.MatchedBy);
+    }
+
+    [Fact]
+    public async Task MatchAsync_ShouldReturnMatchedWithReview_WhenVatMappingFound()
+    {
+        string fingerprint = new SupplierFingerprintBuilder().BuildVat("NL123456789B01");
+        var supplierStore = new FakeSupplierMappingStore();
+        supplierStore.Seed(fingerprint, "exact-vat-01");
+
+        var result = await BuildMatcher(supplierStore: supplierStore).MatchAsync(
+            new InvoiceParseResult
+            {
+                SupplierName      = "Acme B.V.",
+                SupplierVatNumber = "NL123456789B01"
+            },
+            CancellationToken.None);
+
+        Assert.True(result.IsMatched);
+        Assert.True(result.RequiresReview);
+        Assert.Equal("exact-vat-01", result.ExactSupplierId);
+        Assert.Equal(SupplierMatchSources.Vat, result.MatchedBy);
+    }
+
+    [Fact]
+    public async Task MatchAsync_ShouldPreferKvk_WhenBothKvkAndVatAreMapped()
+    {
+        var supplierStore = new FakeSupplierMappingStore();
+        supplierStore.Seed(new SupplierFingerprintBuilder().BuildKvK("12345678"), "exact-kvk-win");
+        supplierStore.Seed(new SupplierFingerprintBuilder().BuildVat("NL123456789B01"), "exact-vat-lose");
+
+        var result = await BuildMatcher(supplierStore: supplierStore).MatchAsync(
+            new InvoiceParseResult
+            {
+                SupplierName      = "Acme B.V.",
+                SupplierKvKNumber = "12345678",
+                SupplierVatNumber = "NL123456789B01"
+            },
+            CancellationToken.None);
+
+        Assert.Equal("exact-kvk-win", result.ExactSupplierId);
+        Assert.Equal(SupplierMatchSources.KvK, result.MatchedBy);
+    }
+
+    [Fact]
+    public async Task MatchAsync_ShouldPreferKvk_WhenBothKvkAndIbanAreMapped()
+    {
+        var supplierStore = new FakeSupplierMappingStore();
+        supplierStore.Seed(new SupplierFingerprintBuilder().BuildKvK("12345678"), "exact-kvk-win");
+
+        var bankStore = new FakeBankAccountMappingStore();
+        bankStore.Seed("IBAN:NL91ABNA0417164300", "exact-iban-lose");
+
+        var result = await BuildMatcher(supplierStore: supplierStore, bankStore: bankStore).MatchAsync(
+            new InvoiceParseResult
+            {
+                SupplierName        = "Acme B.V.",
+                SupplierKvKNumber   = "12345678",
+                SupplierBankAccount = "NL91 ABNA 0417 1643 00"
+            },
+            CancellationToken.None);
+
+        Assert.Equal("exact-kvk-win", result.ExactSupplierId);
+        Assert.Equal(SupplierMatchSources.KvK, result.MatchedBy);
+    }
+
+    [Fact]
+    public async Task MatchAsync_ShouldPreferVat_WhenVatAndIbanAreMappedButKvkIsAbsent()
+    {
+        var supplierStore = new FakeSupplierMappingStore();
+        supplierStore.Seed(new SupplierFingerprintBuilder().BuildVat("NL123456789B01"), "exact-vat-win");
+
+        var bankStore = new FakeBankAccountMappingStore();
+        bankStore.Seed("IBAN:NL91ABNA0417164300", "exact-iban-lose");
+
+        var result = await BuildMatcher(supplierStore: supplierStore, bankStore: bankStore).MatchAsync(
+            new InvoiceParseResult
+            {
+                SupplierName        = "Acme B.V.",
+                SupplierVatNumber   = "NL123456789B01",
+                SupplierBankAccount = "NL91 ABNA 0417 1643 00"
+            },
+            CancellationToken.None);
+
+        Assert.Equal("exact-vat-win", result.ExactSupplierId);
+        Assert.Equal(SupplierMatchSources.Vat, result.MatchedBy);
+    }
+
+    [Fact]
+    public async Task MatchAsync_ShouldSkipKvkCheck_WhenKvkNumberIsNull()
+    {
+        var supplierStore = new FakeSupplierMappingStore();
+        supplierStore.Seed("KVK:", "should-never-be-returned");
+
+        var result = await BuildMatcher(supplierStore: supplierStore).MatchAsync(
+            new InvoiceParseResult { SupplierName = "Acme B.V.", SupplierKvKNumber = null },
+            CancellationToken.None);
+
+        Assert.False(result.IsMatched);
+    }
+
+    [Fact]
+    public async Task MatchAsync_ShouldSkipVatCheck_WhenVatNumberIsNull()
+    {
+        var supplierStore = new FakeSupplierMappingStore();
+        supplierStore.Seed("VAT:", "should-never-be-returned");
+
+        var result = await BuildMatcher(supplierStore: supplierStore).MatchAsync(
+            new InvoiceParseResult { SupplierName = "Acme B.V.", SupplierVatNumber = null },
+            CancellationToken.None);
+
+        Assert.False(result.IsMatched);
+    }
 }
 
 file sealed class FakeSupplierMappingStore : ISupplierMappingStore

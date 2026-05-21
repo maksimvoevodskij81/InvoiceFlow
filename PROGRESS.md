@@ -24,7 +24,7 @@
 
 ## Not started yet
 - [x] PR 17 — Manual retry for ExtractionFailed invoices (POST /invoices/{id}/retry-extraction; new IInvoiceRetryService)
-- [ ] PR 18 — Supplier KvK/VAT matching, review-first (add KvK/VAT to InvoiceParseResult + SupplierMappingEntity; RequiresReview = true always)
+- [x] PR 18 — Supplier KvK/VAT matching, review-first (add KvK/VAT to InvoiceParseResult + SupplierMappingEntity; RequiresReview = true always)
 - [ ] PR 19 — Supplier KvK/VAT auto-match with bank-risk guard (depends on PR 18; remove RequiresReview on safe KvK/VAT match)
 - [ ] Real Claude API integration test with PDF
 - [ ] G/L Account suggestion (future — stays manual input during review for now)

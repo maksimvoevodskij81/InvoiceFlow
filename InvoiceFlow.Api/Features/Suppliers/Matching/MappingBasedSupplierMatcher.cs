@@ -29,6 +29,26 @@ public sealed class MappingBasedSupplierMatcher : ISupplierMatcher
     {
         ArgumentNullException.ThrowIfNull(parseResult);
 
+        string kvkFingerprint = _supplierFingerprintBuilder.BuildKvK(parseResult.SupplierKvKNumber);
+        if (!string.IsNullOrEmpty(kvkFingerprint))
+        {
+            string? kvkId = await _supplierMappingStore.FindExactSupplierIdAsync(kvkFingerprint, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(kvkId))
+            {
+                return Matched(kvkId, SupplierMatchSources.KvK, "Matched by KvK number.");
+            }
+        }
+
+        string vatFingerprint = _supplierFingerprintBuilder.BuildVat(parseResult.SupplierVatNumber);
+        if (!string.IsNullOrEmpty(vatFingerprint))
+        {
+            string? vatId = await _supplierMappingStore.FindExactSupplierIdAsync(vatFingerprint, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(vatId))
+            {
+                return Matched(vatId, SupplierMatchSources.Vat, "Matched by VAT number.");
+            }
+        }
+
         string bankFingerprint = _bankAccountFingerprintBuilder.Build(parseResult.SupplierBankAccount);
         if (!string.IsNullOrEmpty(bankFingerprint))
         {
