@@ -1,6 +1,7 @@
 ﻿using InvoiceFlow.Api.Auth;
 using InvoiceFlow.Api.Contracts;
 using InvoiceFlow.Api.Features.Invoices;
+using InvoiceFlow.Api.Features.Invoices.Extraction;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
@@ -9,6 +10,7 @@ using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.Matching;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
 
 namespace InvoiceFlow.Api.Controllers;
 
@@ -34,6 +36,11 @@ public sealed class InvoicesController : ControllerBase
         ".png",
         ".tif",
         ".tiff"
+    };
+
+    private static readonly JsonSerializerOptions SnakeCaseJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
     };
 
     public InvoicesController(
@@ -416,7 +423,8 @@ public sealed class InvoicesController : ControllerBase
             HasNewBankDetails = record.HasNewBankDetails,
             MatchReasons = record.MatchReasons,
             ReviewSummary = CreateReviewSummary(record),
-            AcceptedFields = CreateAcceptedFieldsResponse(record)
+            AcceptedFields = CreateAcceptedFieldsResponse(record),
+            ExtractedFields = CreateExtractedFieldsResponse(record.RawExtractionJson)
         };
     }
 
@@ -442,5 +450,35 @@ public sealed class InvoicesController : ControllerBase
             TotalAmount = record.AcceptedTotalAmount,
             Currency = record.AcceptedCurrency
         };
+    }
+
+    private static ExtractedInvoiceFieldsResponse? CreateExtractedFieldsResponse(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            var fields = JsonSerializer.Deserialize<LlmExtractedFields>(rawJson, SnakeCaseJsonOptions);
+            if (fields is null)
+            {
+                return null;
+            }
+
+            return new ExtractedInvoiceFieldsResponse
+            {
+                SupplierName  = fields.SupplierName,
+                InvoiceNumber = fields.InvoiceNumber,
+                InvoiceDate   = fields.InvoiceDate,
+                TotalAmount   = fields.TotalAmount,
+                Currency      = fields.Currency
+            };
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 }

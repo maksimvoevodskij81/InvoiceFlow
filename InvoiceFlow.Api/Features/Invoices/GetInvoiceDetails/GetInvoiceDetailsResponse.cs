@@ -60,4 +60,6 @@ public sealed class GetInvoiceDetailsResponse
     public InvoiceReviewSummary ReviewSummary { get; set; } = new();
 
     public AcceptedInvoiceFieldsResponse? AcceptedFields { get; set; }
+
+    public ExtractedInvoiceFieldsResponse? ExtractedFields { get; set; }
 }

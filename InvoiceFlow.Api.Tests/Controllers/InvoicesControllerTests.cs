@@ -998,13 +998,193 @@ public sealed class InvoicesControllerTests
             new FakeInvoiceParser(),
             new FakeSupplierMatcher(),
             new FakeInvoiceUploadService(),
-            new FakeUploadedInvoiceStore(), 
+            new FakeUploadedInvoiceStore(),
             new InvoiceParseResultValidator(),
             new FakeInvoiceReviewService());
 
         var result = await controller.GetById("missing-details-id", CancellationToken.None);
 
         Assert.IsType<NotFoundResult>(result.Result);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnExtractedFields_WhenRawExtractionJsonIsPresent()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        var rawJson = """
+            {
+                "supplier_name": "Acme BV",
+                "invoice_number": "INV-9999",
+                "invoice_date": "2026-03-15",
+                "total_amount": 250.00,
+                "currency": "EUR"
+            }
+            """;
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId        = "extracted-fields-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath   = Path.Combine("temp", "invoice.pdf"),
+            Status           = InvoiceStatuses.ReadyToPost,
+            Message          = InvoiceMessages.ReadyToPost,
+            CreatedAtUtc     = DateTime.UtcNow,
+            FileHash         = "hash-extracted-123",
+            RawExtractionJson = rawJson
+        }, CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("extracted-fields-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.NotNull(response.ExtractedFields);
+        Assert.Equal("Acme BV",              response.ExtractedFields.SupplierName);
+        Assert.Equal("INV-9999",             response.ExtractedFields.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 3, 15), response.ExtractedFields.InvoiceDate);
+        Assert.Equal(250.00m,                response.ExtractedFields.TotalAmount);
+        Assert.Equal("EUR",                  response.ExtractedFields.Currency);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnNullExtractedFields_WhenRawExtractionJsonIsNull()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId         = "no-raw-json-123",
+            OriginalFileName  = "invoice.pdf",
+            StoredFilePath    = Path.Combine("temp", "invoice.pdf"),
+            Status            = InvoiceStatuses.Parsed,
+            Message           = "Invoice parsed successfully.",
+            CreatedAtUtc      = DateTime.UtcNow,
+            FileHash          = "hash-no-raw-123",
+            RawExtractionJson = null
+        }, CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("no-raw-json-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.Null(response.ExtractedFields);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnNullExtractedFields_WhenRawExtractionJsonIsMalformed()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId         = "malformed-json-123",
+            OriginalFileName  = "invoice.pdf",
+            StoredFilePath    = Path.Combine("temp", "invoice.pdf"),
+            Status            = InvoiceStatuses.ExtractionFailed,
+            Message           = "Extraction failed.",
+            CreatedAtUtc      = DateTime.UtcNow,
+            FileHash          = "hash-malformed-123",
+            RawExtractionJson = "this is not valid json {"
+        }, CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("malformed-json-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.Null(response.ExtractedFields);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldShowExtractedAndAcceptedAsDiff_WhenCorrectionsMadeAfterExtraction()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        var rawJson = """
+            {
+                "supplier_name": "Original BV",
+                "invoice_number": "INV-ORIG",
+                "invoice_date": "2026-01-01",
+                "total_amount": 100.00,
+                "currency": "EUR"
+            }
+            """;
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId             = "diff-fields-123",
+            OriginalFileName      = "invoice.pdf",
+            StoredFilePath        = Path.Combine("temp", "invoice.pdf"),
+            Status                = InvoiceStatuses.ReadyToPost,
+            Message               = InvoiceMessages.ReadyToPost,
+            CreatedAtUtc          = DateTime.UtcNow,
+            FileHash              = "hash-diff-123",
+            RawExtractionJson     = rawJson,
+            SupplierName          = "Corrected BV",
+            InvoiceNumber         = "INV-CORRECTED",
+            TotalAmount           = 500.00m,
+            Currency              = "GBP",
+            AcceptedSupplierName  = "Corrected BV",
+            AcceptedInvoiceNumber = "INV-CORRECTED",
+            AcceptedTotalAmount   = 500.00m,
+            AcceptedCurrency      = "GBP",
+            ExactSupplierId       = "exact-1"
+        }, CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("diff-fields-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.NotNull(response.ExtractedFields);
+        Assert.Equal("Original BV",  response.ExtractedFields.SupplierName);
+        Assert.Equal("INV-ORIG",     response.ExtractedFields.InvoiceNumber);
+        Assert.Equal(100.00m,        response.ExtractedFields.TotalAmount);
+        Assert.Equal("EUR",          response.ExtractedFields.Currency);
+
+        Assert.NotNull(response.AcceptedFields);
+        Assert.Equal("Corrected BV",   response.AcceptedFields.SupplierName);
+        Assert.Equal("INV-CORRECTED",  response.AcceptedFields.InvoiceNumber);
+        Assert.Equal(500.00m,          response.AcceptedFields.TotalAmount);
+        Assert.Equal("GBP",            response.AcceptedFields.Currency);
     }
 
     [Fact]
