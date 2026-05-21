@@ -906,6 +906,91 @@ public sealed class InvoicesControllerTests
     }
 
     [Fact]
+    public async Task GetById_ShouldReturnAcceptedInvoiceFields_WhenCorrectionsWereStored()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId             = "accepted-fields-123",
+            OriginalFileName      = "invoice.pdf",
+            StoredFilePath        = Path.Combine("temp", "invoice.pdf"),
+            Status                = InvoiceStatuses.ReadyToPost,
+            Message               = InvoiceMessages.ReadyToPost,
+            CreatedAtUtc          = DateTime.UtcNow,
+            FileHash              = "hash-accepted-123",
+            SupplierName          = "Corrected BV",
+            InvoiceNumber         = "INV-CORRECTED",
+            InvoiceDate           = new DateOnly(2026, 3, 1),
+            TotalAmount           = 999.99m,
+            Currency              = "GBP",
+            AcceptedSupplierName  = "Corrected BV",
+            AcceptedInvoiceNumber = "INV-CORRECTED",
+            AcceptedInvoiceDate   = new DateOnly(2026, 3, 1),
+            AcceptedTotalAmount   = 999.99m,
+            AcceptedCurrency      = "GBP"
+        }, CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("accepted-fields-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.NotNull(response.AcceptedFields);
+        Assert.Equal("Corrected BV",            response.AcceptedFields.SupplierName);
+        Assert.Equal("INV-CORRECTED",           response.AcceptedFields.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 3, 1),  response.AcceptedFields.InvoiceDate);
+        Assert.Equal(999.99m,                   response.AcceptedFields.TotalAmount);
+        Assert.Equal("GBP",                     response.AcceptedFields.Currency);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnNullAcceptedFields_WhenNoCorrectionsWereStored()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId        = "no-corrections-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath   = Path.Combine("temp", "invoice.pdf"),
+            Status           = InvoiceStatuses.ReadyToPost,
+            Message          = InvoiceMessages.ReadyToPost,
+            CreatedAtUtc     = DateTime.UtcNow,
+            FileHash         = "hash-no-corrections-123",
+            SupplierName     = "Original Supplier",
+            InvoiceNumber    = "INV-001",
+            TotalAmount      = 100.00m,
+            Currency         = "EUR"
+        }, CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("no-corrections-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.Null(response.AcceptedFields);
+    }
+
+    [Fact]
     public async Task GetById_ShouldReturnNotFound_WhenInvoiceDoesNotExist()
     {
         var controller = new InvoicesController(

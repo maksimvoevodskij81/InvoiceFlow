@@ -58,4 +58,6 @@ public sealed class GetInvoiceDetailsResponse
     public List<string> MatchReasons { get; set; } = new();
 
     public InvoiceReviewSummary ReviewSummary { get; set; } = new();
+
+    public AcceptedInvoiceFieldsResponse? AcceptedFields { get; set; }
 }

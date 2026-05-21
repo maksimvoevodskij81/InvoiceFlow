@@ -415,7 +415,32 @@ public sealed class InvoicesController : ControllerBase
             CanCreateSupplier = record.CanCreateSupplier,
             HasNewBankDetails = record.HasNewBankDetails,
             MatchReasons = record.MatchReasons,
-            ReviewSummary = CreateReviewSummary(record)
+            ReviewSummary = CreateReviewSummary(record),
+            AcceptedFields = CreateAcceptedFieldsResponse(record)
+        };
+    }
+
+    private static AcceptedInvoiceFieldsResponse? CreateAcceptedFieldsResponse(UploadedInvoiceRecord record)
+    {
+        bool hasAcceptedFields =
+            record.AcceptedSupplierName is not null
+            || record.AcceptedInvoiceNumber is not null
+            || record.AcceptedInvoiceDate is not null
+            || record.AcceptedTotalAmount is not null
+            || record.AcceptedCurrency is not null;
+
+        if (!hasAcceptedFields)
+        {
+            return null;
+        }
+
+        return new AcceptedInvoiceFieldsResponse
+        {
+            SupplierName = record.AcceptedSupplierName,
+            InvoiceNumber = record.AcceptedInvoiceNumber,
+            InvoiceDate = record.AcceptedInvoiceDate,
+            TotalAmount = record.AcceptedTotalAmount,
+            Currency = record.AcceptedCurrency
         };
     }
 }
