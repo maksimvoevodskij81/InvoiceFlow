@@ -1,7 +1,7 @@
 # Create PR
 
 ## Step 1 — Simplify first
-Run /simplify on all changed files.
+Run /code-simplifier on all changed files.
 Review suggestions, apply only what makes sense.
 Skip suggestions that would change behavior.
 
