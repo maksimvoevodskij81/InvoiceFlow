@@ -917,6 +917,269 @@ public sealed class InvoiceUploadServiceTests
         }
     }
 
+    [Fact]
+    public async Task UploadAsync_ShouldReturnReadyToPost_WhenKvkMatchedAndBankIsSafe()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var matcher = new FakeSupplierMatcher
+            {
+                Result = new SupplierMatchResult
+                {
+                    IsMatched = true,
+                    RequiresReview = true,
+                    MatchedBy = SupplierMatchSources.KvK,
+                    ExactSupplierId = "exact-kvk-001",
+                    Message = "Matched by KvK number."
+                }
+            };
+            var service = new InvoiceUploadService(
+                new ParserWithKvkAndBank(),
+                matcher,
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator { Result = new BankDetailsRiskResult { IsSafe = true } });
+
+            IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
+            Assert.NotNull(record);
+            Assert.False(record!.RequiresSupplierReview);
+            Assert.Equal(SupplierMatchSources.KvK, record.SupplierMatchedBy);
+            Assert.Equal(1, exactPostOutboxWriter.EnqueueCallsCount);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldReturnReadyToPost_WhenVatMatchedAndBankIsSafe()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var matcher = new FakeSupplierMatcher
+            {
+                Result = new SupplierMatchResult
+                {
+                    IsMatched = true,
+                    RequiresReview = true,
+                    MatchedBy = SupplierMatchSources.Vat,
+                    ExactSupplierId = "exact-vat-001",
+                    Message = "Matched by VAT number."
+                }
+            };
+            var service = new InvoiceUploadService(
+                new ParserWithKvkAndBank(),
+                matcher,
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator { Result = new BankDetailsRiskResult { IsSafe = true } });
+
+            IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
+            Assert.NotNull(record);
+            Assert.False(record!.RequiresSupplierReview);
+            Assert.Equal(SupplierMatchSources.Vat, record.SupplierMatchedBy);
+            Assert.Equal(1, exactPostOutboxWriter.EnqueueCallsCount);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldReturnNeedsReview_WhenKvkMatchedButBankIsNew()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var matcher = new FakeSupplierMatcher
+            {
+                Result = new SupplierMatchResult
+                {
+                    IsMatched = true,
+                    RequiresReview = true,
+                    MatchedBy = SupplierMatchSources.KvK,
+                    ExactSupplierId = "exact-kvk-001",
+                    Message = "Matched by KvK number."
+                }
+            };
+            var service = new InvoiceUploadService(
+                new ParserWithKvkAndBank(),
+                matcher,
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator
+                {
+                    Result = new BankDetailsRiskResult
+                    {
+                        IsSafe = false,
+                        IsNewBankDetails = true,
+                        Reasons = new List<string> { "Bank account is new for the matched supplier." }
+                    }
+                });
+
+            IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
+            Assert.NotNull(record);
+            Assert.True(record!.RequiresSupplierReview);
+            Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldReturnNeedsReview_WhenKvkMatchedButBankConflicts()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var matcher = new FakeSupplierMatcher
+            {
+                Result = new SupplierMatchResult
+                {
+                    IsMatched = true,
+                    RequiresReview = true,
+                    MatchedBy = SupplierMatchSources.KvK,
+                    ExactSupplierId = "exact-kvk-001",
+                    Message = "Matched by KvK number."
+                }
+            };
+            var service = new InvoiceUploadService(
+                new ParserWithKvkAndBank(),
+                matcher,
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator
+                {
+                    Result = new BankDetailsRiskResult
+                    {
+                        IsSafe = false,
+                        HasConflict = true,
+                        Reasons = new List<string> { "Bank account is already linked to another supplier." }
+                    }
+                });
+
+            IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
+            Assert.NotNull(record);
+            Assert.True(record!.RequiresSupplierReview);
+            Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldReturnNeedsReview_WhenKvkMatchedButNoBankAccount()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var exactPostOutboxWriter = new FakeExactPostOutboxWriter();
+            var matcher = new FakeSupplierMatcher
+            {
+                Result = new SupplierMatchResult
+                {
+                    IsMatched = true,
+                    RequiresReview = true,
+                    MatchedBy = SupplierMatchSources.KvK,
+                    ExactSupplierId = "exact-kvk-001",
+                    Message = "Matched by KvK number."
+                }
+            };
+            var service = new InvoiceUploadService(
+                new ParserWithKvkOnly(),
+                matcher,
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                exactPostOutboxWriter,
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator { Result = new BankDetailsRiskResult { IsSafe = true } });
+
+            IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
+            var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+
+            Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
+            Assert.NotNull(record);
+            Assert.True(record!.RequiresSupplierReview);
+            Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
+            if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true);
+        }
+    }
+
     private static IFormFile CreatePdfFormFile(byte[] bytes, string fileName)
     {
         var stream = new MemoryStream(bytes);
@@ -1108,5 +1371,43 @@ file sealed class ThrowingLlmExtractor : ILlmInvoiceExtractor
     public Task<LlmExtractionResult> ExtractAsync(FolderInvoiceFile file, CancellationToken cancellationToken = default)
     {
         throw new InvalidOperationException(_message);
+    }
+}
+
+file sealed class ParserWithKvkAndBank : IInvoiceParser
+{
+    public Task<InvoiceParseResult> ParseAsync(
+        FolderInvoiceFile file,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new InvoiceParseResult
+        {
+            SupplierName       = "Acme B.V.",
+            InvoiceNumber      = "INV-KVK-001",
+            InvoiceDate        = new DateOnly(2026, 5, 1),
+            TotalAmount        = 250.00m,
+            Currency           = "EUR",
+            SupplierKvKNumber  = "12345678",
+            SupplierBankAccount = "NL91ABNA0417164300"
+        });
+    }
+}
+
+file sealed class ParserWithKvkOnly : IInvoiceParser
+{
+    public Task<InvoiceParseResult> ParseAsync(
+        FolderInvoiceFile file,
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new InvoiceParseResult
+        {
+            SupplierName      = "Acme B.V.",
+            InvoiceNumber     = "INV-KVK-002",
+            InvoiceDate       = new DateOnly(2026, 5, 1),
+            TotalAmount       = 250.00m,
+            Currency          = "EUR",
+            SupplierKvKNumber = "12345678",
+            SupplierBankAccount = null
+        });
     }
 }

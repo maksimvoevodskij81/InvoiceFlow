@@ -134,6 +134,18 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
                     supplierMatchResult.HasNewBankDetails = true;
                     supplierMatchResult.Message = "Supplier matched, but bank details are new and require review.";
                 }
+                else if (
+                    (supplierMatchResult.MatchedBy == SupplierMatchSources.KvK ||
+                     supplierMatchResult.MatchedBy == SupplierMatchSources.Vat) &&
+                    !string.IsNullOrWhiteSpace(parseResult.SupplierBankAccount) &&
+                    bankRiskResult.IsSafe)
+                {
+                    // Bank account is present and registered to this supplier — safe to auto-post.
+                    // Without the bank account presence check, an absent bank would also appear
+                    // safe (the evaluator early-returns IsSafe=true when no fingerprint exists).
+                    supplierMatchResult.RequiresReview = false;
+                    supplierMatchResult.Message = "Supplier matched by KvK/VAT with verified bank account.";
+                }
             }
 
             List<string> missingSupplierFields = _supplierCreateValidator.Validate(parseResult);
