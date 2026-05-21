@@ -62,4 +62,8 @@ public sealed class GetInvoiceDetailsResponse
     public AcceptedInvoiceFieldsResponse? AcceptedFields { get; set; }
 
     public ExtractedInvoiceFieldsResponse? ExtractedFields { get; set; }
+
+    public string? UploadedBy { get; set; }
+
+    public string? ReviewedBy { get; set; }
 }

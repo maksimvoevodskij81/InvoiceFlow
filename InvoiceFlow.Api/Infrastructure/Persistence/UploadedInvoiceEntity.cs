@@ -76,4 +76,8 @@ public sealed class UploadedInvoiceEntity
     public DateOnly? AcceptedInvoiceDate   { get; set; }
     public decimal?  AcceptedTotalAmount   { get; set; }
     public string?   AcceptedCurrency      { get; set; }
+
+    public string? UploadedBy { get; set; }
+
+    public string? ReviewedBy { get; set; }
 }

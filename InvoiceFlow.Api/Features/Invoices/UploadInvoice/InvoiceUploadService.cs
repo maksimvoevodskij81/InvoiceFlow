@@ -43,6 +43,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
 
     public async Task<UploadInvoiceAcceptedResponse> UploadAsync(
         IFormFile file,
+        string? uploadedBy = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(file);
@@ -66,7 +67,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
         var invoiceId = Guid.NewGuid().ToString();
         var storedFilePath = await _uploadedInvoiceFileStore.SaveAsync(file, cancellationToken);
 
-        var record = CreateProcessingRecord(invoiceId, file, storedFilePath, fileHash);
+        var record = CreateProcessingRecord(invoiceId, file, storedFilePath, fileHash, uploadedBy);
 
         await _uploadedInvoiceStore.SaveAsync(record, cancellationToken);
 
@@ -241,7 +242,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
     string invoiceId,
     IFormFile file,
     string storedFilePath,
-    string fileHash)
+    string fileHash,
+    string? uploadedBy)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
         ArgumentNullException.ThrowIfNull(file);
@@ -256,7 +258,8 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             Status = InvoiceStatuses.Processing,
             Message = InvoiceMessages.UploadReceived,
             CreatedAtUtc = DateTime.UtcNow,
-            FileHash = fileHash
+            FileHash = fileHash,
+            UploadedBy = uploadedBy
         };
     }
 
@@ -277,6 +280,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             Message = InvoiceMessages.ExtractionFailed,
             CreatedAtUtc = processingRecord.CreatedAtUtc,
             FileHash = processingRecord.FileHash,
+            UploadedBy = processingRecord.UploadedBy,
             ExtractionCompletedAtUtc = llmResult.Metadata.ExtractedAtUtc,
             ExtractionModel = llmResult.Metadata.Model ?? extractionModel,
             RawExtractionJson = llmResult.Raw.RawJson,
@@ -306,6 +310,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             Message = InvoiceMessages.MissingRequiredFields(missingFields),
             CreatedAtUtc = processingRecord.CreatedAtUtc,
             FileHash = processingRecord.FileHash,
+            UploadedBy = processingRecord.UploadedBy,
             SupplierName = parseResult.SupplierName,
             InvoiceNumber = parseResult.InvoiceNumber,
             InvoiceDate = parseResult.InvoiceDate,
@@ -373,6 +378,7 @@ public sealed class InvoiceUploadService : IInvoiceUploadService
             Message = message,
             CreatedAtUtc = processingRecord.CreatedAtUtc,
             FileHash = processingRecord.FileHash,
+            UploadedBy = processingRecord.UploadedBy,
             SupplierName = parseResult.SupplierName,
             InvoiceNumber = parseResult.InvoiceNumber,
             InvoiceDate = parseResult.InvoiceDate,

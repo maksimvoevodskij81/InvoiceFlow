@@ -11,6 +11,7 @@ using InvoiceFlow.Api.Infrastructure;
 using InvoiceFlow.Api.Tests.Fakes;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace InvoiceFlow.Api.Tests.Controllers;
 
@@ -1503,6 +1504,129 @@ public sealed class InvoicesControllerTests
         var badRequestResult = Assert.IsType<BadRequestObjectResult>(result);
 
         Assert.Equal("The invoice review action could not be completed.", badRequestResult.Value);
+    }
+
+    [Fact]
+    public async Task ApproveReview_ShouldPassReviewedByFromSubClaimToService()
+    {
+        var reviewService = new FakeInvoiceReviewService();
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            reviewService);
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim("sub", "reviewer-sub-123") }, "test"))
+            }
+        };
+
+        await controller.ApproveReview("invoice-123", null, CancellationToken.None);
+
+        Assert.Equal("reviewer-sub-123", reviewService.LastReviewedBy);
+    }
+
+    [Fact]
+    public async Task RejectReview_ShouldPassReviewedByFromSubClaimToService()
+    {
+        var reviewService = new FakeInvoiceReviewService();
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            reviewService);
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim("sub", "reviewer-sub-456") }, "test"))
+            }
+        };
+
+        await controller.RejectReview("invoice-456", null, CancellationToken.None);
+
+        Assert.Equal("reviewer-sub-456", reviewService.LastReviewedBy);
+    }
+
+    [Fact]
+    public async Task Upload_ShouldPassUploadedByFromSubClaimToService()
+    {
+        var uploadService = new FakeInvoiceUploadService();
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            uploadService,
+            new FakeUploadedInvoiceStore(),
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity(
+                    new[] { new Claim("sub", "uploader-sub-789") }, "test"))
+            }
+        };
+
+        await using var stream = new MemoryStream(new byte[] { 1, 2, 3, 4 });
+        var formFile = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/pdf"
+        };
+        await controller.Upload(new UploadInvoiceRequest { File = formFile }, CancellationToken.None);
+
+        Assert.Equal("uploader-sub-789", uploadService.LastUploadedBy);
+    }
+
+    [Fact]
+    public async Task GetById_ShouldReturnUploadedByAndReviewedBy_WhenBothAreStored()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+
+        await uploadedInvoiceStore.SaveAsync(new UploadedInvoiceRecord
+        {
+            InvoiceId        = "audit-fields-123",
+            OriginalFileName = "invoice.pdf",
+            StoredFilePath   = Path.Combine("temp", "invoice.pdf"),
+            Status           = InvoiceStatuses.ReadyToPost,
+            Message          = InvoiceMessages.ReadyToPost,
+            CreatedAtUtc     = DateTime.UtcNow,
+            FileHash         = "hash-audit-123",
+            UploadedBy       = "uploader@example.com",
+            ReviewedBy       = "reviewer@example.com"
+        }, CancellationToken.None);
+
+        var controller = new InvoicesController(
+            new LocalInvoiceFolderReader(),
+            new FakeInvoiceParser(),
+            new FakeSupplierMatcher(),
+            new FakeInvoiceUploadService(),
+            uploadedInvoiceStore,
+            new InvoiceParseResultValidator(),
+            new FakeInvoiceReviewService());
+
+        var result = await controller.GetById("audit-fields-123", CancellationToken.None);
+
+        var okResult = Assert.IsType<OkObjectResult>(result.Result);
+        var response = Assert.IsType<GetInvoiceDetailsResponse>(okResult.Value);
+
+        Assert.Equal("uploader@example.com", response.UploadedBy);
+        Assert.Equal("reviewer@example.com", response.ReviewedBy);
     }
 }
 

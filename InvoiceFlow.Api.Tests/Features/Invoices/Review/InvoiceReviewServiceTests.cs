@@ -53,7 +53,7 @@ public sealed class InvoiceReviewServiceTests
 
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
-        await service.ApproveAsync("invoice-1", null, null, CancellationToken.None);
+        await service.ApproveAsync("invoice-1", null, null, cancellationToken: CancellationToken.None);
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-1", CancellationToken.None);
 
@@ -113,7 +113,7 @@ public sealed class InvoiceReviewServiceTests
 
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
-        await service.ApproveAsync("invoice-2", null, null, CancellationToken.None);
+        await service.ApproveAsync("invoice-2", null, null, cancellationToken: CancellationToken.None);
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-2", CancellationToken.None);
 
@@ -174,7 +174,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.ApproveAsync("invoice-3", null, null, CancellationToken.None));
+            () => service.ApproveAsync("invoice-3", null, null, cancellationToken: CancellationToken.None));
 
         Assert.Contains("not in 'NeedsReview' status", exception.Message);
     }
@@ -225,7 +225,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var beforeReview = DateTime.UtcNow;
-        await service.ApproveAsync("invoice-8", null, null, CancellationToken.None);
+        await service.ApproveAsync("invoice-8", null, null, cancellationToken: CancellationToken.None);
         var afterReview = DateTime.UtcNow;
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-8", CancellationToken.None);
@@ -288,7 +288,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var reviewComment = "Approved after manual review.";
-        await service.ApproveAsync("invoice-10", reviewComment, null, CancellationToken.None);
+        await service.ApproveAsync("invoice-10", reviewComment, null, cancellationToken: CancellationToken.None);
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-10", CancellationToken.None);
 
@@ -344,7 +344,7 @@ public sealed class InvoiceReviewServiceTests
 
         var beforeReview = DateTime.UtcNow;
         var reviewComment = "Rejected due to duplicate supplier entry.";
-        await service.RejectAsync("invoice-9", reviewComment, CancellationToken.None);
+        await service.RejectAsync("invoice-9", reviewComment, cancellationToken: CancellationToken.None);
         var afterReview = DateTime.UtcNow;
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-9", CancellationToken.None);
@@ -404,7 +404,7 @@ public sealed class InvoiceReviewServiceTests
 
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
-        await service.RejectAsync("invoice-5", null, CancellationToken.None);
+        await service.RejectAsync("invoice-5", null, cancellationToken: CancellationToken.None);
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-5", CancellationToken.None);
 
@@ -431,7 +431,7 @@ public sealed class InvoiceReviewServiceTests
             supplierCreateOutboxWriter);
 
         await Assert.ThrowsAsync<KeyNotFoundException>(
-            () => service.RejectAsync("missing-invoice", null, CancellationToken.None));
+            () => service.RejectAsync("missing-invoice", null, cancellationToken: CancellationToken.None));
     }
 
     [Fact]
@@ -480,7 +480,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.RejectAsync("invoice-6", null, CancellationToken.None));
+            () => service.RejectAsync("invoice-6", null, cancellationToken: CancellationToken.None));
 
         Assert.Contains("not in 'NeedsReview' status", exception.Message);
     }
@@ -530,7 +530,7 @@ public sealed class InvoiceReviewServiceTests
 
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
-        await service.RejectAsync("invoice-7", null, CancellationToken.None);
+        await service.RejectAsync("invoice-7", null, cancellationToken: CancellationToken.None);
 
         Assert.Equal(0, exactPostOutboxWriter.EnqueueCallsCount);
         Assert.Equal(0, supplierCreateOutboxWriter.EnqueueCallsCount);
@@ -582,7 +582,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.ApproveAsync("invoice-4", null, null, CancellationToken.None));
+            () => service.ApproveAsync("invoice-4", null, null, cancellationToken: CancellationToken.None));
 
         Assert.Contains("no safe next step", exception.Message);
     }
@@ -605,7 +605,7 @@ public sealed class InvoiceReviewServiceTests
             Currency      = "GBP"
         };
 
-        await service.ApproveAsync("invoice-acc-1", null, accepted, CancellationToken.None);
+        await service.ApproveAsync("invoice-acc-1", null, accepted, cancellationToken: CancellationToken.None);
 
         var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-1", CancellationToken.None);
 
@@ -635,7 +635,7 @@ public sealed class InvoiceReviewServiceTests
             Currency      = "GBP"
         };
 
-        await service.ApproveAsync("invoice-acc-2", null, accepted, CancellationToken.None);
+        await service.ApproveAsync("invoice-acc-2", null, accepted, cancellationToken: CancellationToken.None);
 
         var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-2", CancellationToken.None);
 
@@ -656,7 +656,7 @@ public sealed class InvoiceReviewServiceTests
         var invoice = BuildNeedsReviewInvoice("invoice-acc-3");
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
-        await service.ApproveAsync("invoice-acc-3", null, acceptedFields: null, CancellationToken.None);
+        await service.ApproveAsync("invoice-acc-3", null, acceptedFields: null, cancellationToken: CancellationToken.None);
 
         var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-3", CancellationToken.None);
 
@@ -683,7 +683,7 @@ public sealed class InvoiceReviewServiceTests
             TotalAmount = 500.00m
         };
 
-        await service.ApproveAsync("invoice-acc-4", null, accepted, CancellationToken.None);
+        await service.ApproveAsync("invoice-acc-4", null, accepted, cancellationToken: CancellationToken.None);
 
         var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-4", CancellationToken.None);
 
@@ -695,6 +695,51 @@ public sealed class InvoiceReviewServiceTests
         Assert.Null(updated.AcceptedSupplierName);
         Assert.Equal(500.00m,             updated.AcceptedTotalAmount);
         Assert.Null(updated.AcceptedCurrency);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_ShouldStoreReviewedBy_WhenReviewerIsProvided()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var service = new InvoiceReviewService(uploadedInvoiceStore, new FakeExactPostOutboxWriter(), new FakeSupplierCreateOutboxWriter());
+        var invoice = BuildNeedsReviewInvoice("invoice-reviewer-1");
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        await service.ApproveAsync("invoice-reviewer-1", null, null, reviewedBy: "reviewer@example.com", CancellationToken.None);
+
+        var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-reviewer-1", CancellationToken.None);
+        Assert.NotNull(updated);
+        Assert.Equal("reviewer@example.com", updated.ReviewedBy);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_ShouldStoreNullReviewedBy_WhenNoReviewerProvided()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var service = new InvoiceReviewService(uploadedInvoiceStore, new FakeExactPostOutboxWriter(), new FakeSupplierCreateOutboxWriter());
+        var invoice = BuildNeedsReviewInvoice("invoice-reviewer-2");
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        await service.ApproveAsync("invoice-reviewer-2", null, null, reviewedBy: null, CancellationToken.None);
+
+        var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-reviewer-2", CancellationToken.None);
+        Assert.NotNull(updated);
+        Assert.Null(updated.ReviewedBy);
+    }
+
+    [Fact]
+    public async Task RejectAsync_ShouldStoreReviewedBy_WhenReviewerIsProvided()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var service = new InvoiceReviewService(uploadedInvoiceStore, new FakeExactPostOutboxWriter(), new FakeSupplierCreateOutboxWriter());
+        var invoice = BuildNeedsReviewInvoice("invoice-reviewer-3");
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        await service.RejectAsync("invoice-reviewer-3", null, reviewedBy: "reviewer@example.com", CancellationToken.None);
+
+        var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-reviewer-3", CancellationToken.None);
+        Assert.NotNull(updated);
+        Assert.Equal("reviewer@example.com", updated.ReviewedBy);
     }
 
     private static UploadedInvoiceRecord BuildNeedsReviewInvoice(string invoiceId) => new()

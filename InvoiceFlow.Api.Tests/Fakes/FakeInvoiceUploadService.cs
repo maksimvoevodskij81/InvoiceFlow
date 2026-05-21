@@ -10,6 +10,8 @@ public sealed class FakeInvoiceUploadService : IInvoiceUploadService
 
     public IFormFile? LastFile { get; private set; }
 
+    public string? LastUploadedBy { get; private set; }
+
     public UploadInvoiceAcceptedResponse Response { get; set; } = new UploadInvoiceAcceptedResponse
     {
         InvoiceId = "123",
@@ -19,12 +21,14 @@ public sealed class FakeInvoiceUploadService : IInvoiceUploadService
 
     public Task<UploadInvoiceAcceptedResponse> UploadAsync(
         IFormFile file,
+        string? uploadedBy = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(file);
 
         CallsCount++;
         LastFile = file;
+        LastUploadedBy = uploadedBy;
 
         return Task.FromResult(Response);
     }

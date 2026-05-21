@@ -187,7 +187,9 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             AcceptedInvoiceNumber = record.AcceptedInvoiceNumber,
             AcceptedInvoiceDate   = record.AcceptedInvoiceDate,
             AcceptedTotalAmount   = record.AcceptedTotalAmount,
-            AcceptedCurrency      = record.AcceptedCurrency
+            AcceptedCurrency      = record.AcceptedCurrency,
+            UploadedBy = record.UploadedBy,
+            ReviewedBy = record.ReviewedBy
         };
     }
 
@@ -238,7 +240,9 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             AcceptedInvoiceNumber = entity.AcceptedInvoiceNumber,
             AcceptedInvoiceDate   = entity.AcceptedInvoiceDate,
             AcceptedTotalAmount   = entity.AcceptedTotalAmount,
-            AcceptedCurrency      = entity.AcceptedCurrency
+            AcceptedCurrency      = entity.AcceptedCurrency,
+            UploadedBy = entity.UploadedBy,
+            ReviewedBy = entity.ReviewedBy
         };
     }
 
@@ -287,5 +291,7 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
         entity.AcceptedInvoiceDate   = record.AcceptedInvoiceDate;
         entity.AcceptedTotalAmount   = record.AcceptedTotalAmount;
         entity.AcceptedCurrency      = record.AcceptedCurrency;
+        entity.UploadedBy = record.UploadedBy;
+        entity.ReviewedBy = record.ReviewedBy;
     }
 }

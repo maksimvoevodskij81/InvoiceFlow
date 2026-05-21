@@ -87,7 +87,7 @@ public sealed class InvoicesController : ControllerBase
             return BadRequest("File size must not exceed 10 MB.");
         }
 
-        var response = await _invoiceUploadService.UploadAsync(request.File, cancellationToken);
+        var response = await _invoiceUploadService.UploadAsync(request.File, GetCallerIdentity(), cancellationToken);
 
         return Accepted(response);
     }
@@ -208,7 +208,7 @@ public sealed class InvoicesController : ControllerBase
     {
         try
         {
-            await _invoiceReviewService.ApproveAsync(id, request?.Comment, request?.AcceptedFields, cancellationToken);
+            await _invoiceReviewService.ApproveAsync(id, request?.Comment, request?.AcceptedFields, GetCallerIdentity(), cancellationToken);
             return Ok();
         }
         catch (KeyNotFoundException)
@@ -233,7 +233,7 @@ public sealed class InvoicesController : ControllerBase
     {
         try
         {
-            await _invoiceReviewService.RejectAsync(id, request?.Comment, cancellationToken);
+            await _invoiceReviewService.RejectAsync(id, request?.Comment, GetCallerIdentity(), cancellationToken);
             return Ok();
         }
         catch (KeyNotFoundException)
@@ -424,8 +424,16 @@ public sealed class InvoicesController : ControllerBase
             MatchReasons = record.MatchReasons,
             ReviewSummary = CreateReviewSummary(record),
             AcceptedFields = CreateAcceptedFieldsResponse(record),
-            ExtractedFields = CreateExtractedFieldsResponse(record.RawExtractionJson)
+            ExtractedFields = CreateExtractedFieldsResponse(record.RawExtractionJson),
+            UploadedBy = record.UploadedBy,
+            ReviewedBy = record.ReviewedBy
         };
+    }
+
+    private string? GetCallerIdentity()
+    {
+        return HttpContext?.User?.FindFirst("sub")?.Value
+            ?? HttpContext?.User?.FindFirst("name")?.Value;
     }
 
     private static AcceptedInvoiceFieldsResponse? CreateAcceptedFieldsResponse(UploadedInvoiceRecord record)

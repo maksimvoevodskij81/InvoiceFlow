@@ -22,12 +22,15 @@ public sealed class FakeInvoiceReviewService : IInvoiceReviewService
 
     public AcceptedInvoiceFields? LastAcceptedFields { get; private set; }
 
-    public Task ApproveAsync(string invoiceId, string? reviewComment, AcceptedInvoiceFields? acceptedFields = null, CancellationToken cancellationToken = default)
+    public string? LastReviewedBy { get; private set; }
+
+    public Task ApproveAsync(string invoiceId, string? reviewComment, AcceptedInvoiceFields? acceptedFields = null, string? reviewedBy = null, CancellationToken cancellationToken = default)
     {
         ApproveCallsCount++;
         LastApprovedInvoiceId = invoiceId;
         LastApprovedReviewComment = reviewComment;
         LastAcceptedFields = acceptedFields;
+        LastReviewedBy = reviewedBy;
 
         if (ApproveException is not null)
         {
@@ -37,11 +40,12 @@ public sealed class FakeInvoiceReviewService : IInvoiceReviewService
         return Task.CompletedTask;
     }
 
-    public Task RejectAsync(string invoiceId, string? reviewComment, CancellationToken cancellationToken = default)
+    public Task RejectAsync(string invoiceId, string? reviewComment, string? reviewedBy = null, CancellationToken cancellationToken = default)
     {
         RejectCallsCount++;
         LastRejectedInvoiceId = invoiceId;
         LastRejectedReviewComment = reviewComment;
+        LastReviewedBy = reviewedBy;
 
         if (RejectException is not null)
         {

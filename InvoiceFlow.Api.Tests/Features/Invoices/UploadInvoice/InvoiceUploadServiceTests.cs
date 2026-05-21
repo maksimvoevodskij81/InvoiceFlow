@@ -44,7 +44,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
             Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
             Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
@@ -114,7 +114,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
             Assert.NotNull(savedRecord);
@@ -165,7 +165,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
             Assert.NotNull(savedRecord);
@@ -214,8 +214,8 @@ public sealed class InvoiceUploadServiceTests
             var firstFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
             var secondFile = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice-copy.pdf");
 
-            var firstResponse = await service.UploadAsync(firstFile, CancellationToken.None);
-            var duplicateResponse = await service.UploadAsync(secondFile, CancellationToken.None);
+            var firstResponse = await service.UploadAsync(firstFile, cancellationToken: CancellationToken.None);
+            var duplicateResponse = await service.UploadAsync(secondFile, cancellationToken: CancellationToken.None);
 
             Assert.False(string.IsNullOrWhiteSpace(firstResponse.InvoiceId));
             Assert.Equal(InvoiceStatuses.ReadyToPost, firstResponse.Status);
@@ -268,7 +268,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
             Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
             Assert.Equal(InvoiceStatuses.NeedsReview, response.Status);
@@ -328,7 +328,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
             Assert.False(string.IsNullOrWhiteSpace(response.InvoiceId));
             Assert.Equal(InvoiceStatuses.Failed, response.Status);
@@ -404,7 +404,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
             Assert.Equal(InvoiceStatuses.ReadyToPost, response.Status);
             Assert.Equal(1, outboxWriter.EnqueueCallsCount);
@@ -439,7 +439,7 @@ public sealed class InvoiceUploadServiceTests
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
-        var response = await service.UploadAsync(file, CancellationToken.None);
+        var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
         Assert.Equal(InvoiceStatuses.Invalid, response.Status);
         Assert.NotEmpty(response.MissingFields);
@@ -466,7 +466,7 @@ public sealed class InvoiceUploadServiceTests
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
-        var response = await service.UploadAsync(file, CancellationToken.None);
+        var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
         var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
@@ -494,7 +494,7 @@ public sealed class InvoiceUploadServiceTests
 
         IFormFile file = CreatePdfFormFile(new byte[] { 1, 2, 3 }, "invoice.pdf");
 
-        var response = await service.UploadAsync(file, CancellationToken.None);
+        var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
         var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
@@ -537,7 +537,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
             var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
             Assert.NotNull(record);
@@ -604,7 +604,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
             var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
             Assert.NotNull(record);
@@ -677,7 +677,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
             var record = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
             Assert.NotNull(record);
@@ -755,7 +755,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
 
             Assert.Equal(InvoiceStatuses.Parsed, response.Status);
 
@@ -801,7 +801,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
             Assert.Equal(InvoiceStatuses.ExtractionFailed, response.Status);
@@ -852,7 +852,7 @@ public sealed class InvoiceUploadServiceTests
                 ContentType = "application/pdf"
             };
 
-            var response = await service.UploadAsync(file, CancellationToken.None);
+            var response = await service.UploadAsync(file, cancellationToken: CancellationToken.None);
             var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
 
             Assert.Equal(InvoiceStatuses.ExtractionFailed, response.Status);
@@ -865,6 +865,51 @@ public sealed class InvoiceUploadServiceTests
         {
             Directory.SetCurrentDirectory(originalCurrentDirectory);
 
+            if (Directory.Exists(tempRoot))
+            {
+                Directory.Delete(tempRoot, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task UploadAsync_ShouldStoreUploadedBy_WhenCallerIsProvided()
+    {
+        var originalCurrentDirectory = Directory.GetCurrentDirectory();
+        var tempRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        Directory.CreateDirectory(tempRoot);
+        Directory.SetCurrentDirectory(tempRoot);
+
+        try
+        {
+            var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+            var service = new InvoiceUploadService(
+                new FakeInvoiceParser(),
+                new FakeSupplierMatcher(),
+                new LocalUploadedInvoiceFileStore(),
+                uploadedInvoiceStore,
+                new FakeExactPostOutboxWriter(),
+                new InvoiceParseResultValidator(),
+                new SupplierCreateValidator(),
+                new FakeSupplierCreateOutboxWriter(),
+                new FakeBankDetailsRiskEvaluator());
+
+            await using var stream = new MemoryStream(new byte[] { 1, 2, 3 });
+            IFormFile file = new FormFile(stream, 0, stream.Length, "file", "invoice.pdf")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/pdf"
+            };
+
+            var response = await service.UploadAsync(file, "uploader@example.com", CancellationToken.None);
+
+            var savedRecord = await uploadedInvoiceStore.GetByIdAsync(response.InvoiceId, CancellationToken.None);
+            Assert.NotNull(savedRecord);
+            Assert.Equal("uploader@example.com", savedRecord.UploadedBy);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(originalCurrentDirectory);
             if (Directory.Exists(tempRoot))
             {
                 Directory.Delete(tempRoot, recursive: true);
