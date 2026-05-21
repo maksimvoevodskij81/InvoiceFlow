@@ -5,6 +5,7 @@ using InvoiceFlow.Api.Features.Invoices.Extraction;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceDetails;
 using InvoiceFlow.Api.Features.Invoices.GetInvoiceStatus;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
+using InvoiceFlow.Api.Features.Invoices.RetryExtraction;
 using InvoiceFlow.Api.Features.Invoices.Review;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.Matching;
@@ -25,6 +26,7 @@ public sealed class InvoicesController : ControllerBase
     private readonly IUploadedInvoiceStore _uploadedInvoiceStore;
     private readonly InvoiceParseResultValidator _invoiceParseResultValidator;
     private readonly IInvoiceReviewService _invoiceReviewService;
+    private readonly IInvoiceRetryService _invoiceRetryService;
 
     private const long MaxUploadFileSizeInBytes = 10 * 1024 * 1024;
 
@@ -50,7 +52,8 @@ public sealed class InvoicesController : ControllerBase
         IInvoiceUploadService invoiceUploadService,
         IUploadedInvoiceStore uploadedInvoiceStore,
         InvoiceParseResultValidator invoiceParseResultValidator,
-        IInvoiceReviewService invoiceReviewService)
+        IInvoiceReviewService invoiceReviewService,
+        IInvoiceRetryService invoiceRetryService)
     {
         _invoiceFolderReader = invoiceFolderReader;
         _invoiceParser = invoiceParser;
@@ -59,6 +62,7 @@ public sealed class InvoicesController : ControllerBase
         _uploadedInvoiceStore = uploadedInvoiceStore;
         _invoiceParseResultValidator = invoiceParseResultValidator;
         _invoiceReviewService = invoiceReviewService;
+        _invoiceRetryService = invoiceRetryService;
     }
 
     [Authorize(Policy = PolicyNames.InvoiceUploader)]
@@ -243,6 +247,28 @@ public sealed class InvoicesController : ControllerBase
         catch (InvalidOperationException)
         {
             return BadRequest("The invoice review action could not be completed.");
+        }
+    }
+
+    [Authorize(Policy = PolicyNames.InvoiceUploader)]
+    [HttpPost("{id}/retry-extraction")]
+    [ProducesResponseType(typeof(RetryExtractionResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RetryExtraction(string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _invoiceRetryService.RetryExtractionAsync(id, cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
         }
     }
 

@@ -2,6 +2,7 @@ using InvoiceFlow.Api.Auth;
 using InvoiceFlow.Api.Features.Exact;
 using InvoiceFlow.Api.Features.Invoices.Extraction;
 using InvoiceFlow.Api.Features.Invoices.ImportInvoicesFromFolder;
+using InvoiceFlow.Api.Features.Invoices.RetryExtraction;
 using InvoiceFlow.Api.Features.Invoices.Review;
 using InvoiceFlow.Api.Features.Invoices.UploadInvoice;
 using InvoiceFlow.Api.Features.Suppliers.CreateSupplier;
@@ -149,6 +150,7 @@ builder.Services.AddScoped<ISupplierMappingStore, EfSupplierMappingStore>();
 builder.Services.AddScoped<IBankAccountMappingStore, EfBankAccountMappingStore>();
 builder.Services.AddScoped<IBankDetailsRiskEvaluator, DefaultBankDetailsRiskEvaluator>();
 builder.Services.AddScoped<IInvoiceReviewService, InvoiceReviewService>();
+builder.Services.AddScoped<IInvoiceRetryService, InvoiceRetryService>();
 
 builder.Services.AddDbContext<InvoiceFlowDbContext>(options =>
 {
