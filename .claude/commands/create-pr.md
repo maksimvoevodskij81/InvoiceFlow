@@ -1,5 +1,3 @@
-Create file .claude/commands/create-pr.md with this content:
-
 # Create PR
 
 ## Step 1 — Simplify first
