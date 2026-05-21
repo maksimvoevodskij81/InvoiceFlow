@@ -20,9 +20,9 @@
 - [x] PR 13 — Human correction flow: AcceptedInvoiceFields (5 core posting fields; Accepted* audit columns + overwrite main columns; ApproveReviewRequest DTO; EF migration; 4 focused tests)
 - [x] PR 14 — Expose AcceptedFields in GetInvoiceDetailsResponse (AcceptedInvoiceFieldsResponse DTO; null when no corrections; helper method; 2 focused tests)
 - [x] PR 15 — Expose ExtractedFields in GetInvoiceDetailsResponse (ExtractedInvoiceFieldsResponse DTO; deserialized from RawExtractionJson; null-safe + malformed-JSON-safe; no migration; 4 focused tests)
+- [x] PR 16 — UploadedBy / ReviewedBy audit fields (JWT sub claim → nullable columns + migration; IInvoiceReviewService + IInvoiceUploadService signature change; GetCallerIdentity() in controller; 8 focused tests)
 
 ## Not started yet
-- [ ] PR 16 — UploadedBy / ReviewedBy audit fields (JWT claims → nullable columns + migration; IInvoiceReviewService signature change)
 - [ ] PR 17 — Manual retry for ExtractionFailed invoices (POST /invoices/{id}/retry-extraction; new IInvoiceRetryService)
 - [ ] PR 18 — Supplier KvK/VAT matching, review-first (add KvK/VAT to InvoiceParseResult + SupplierMappingEntity; RequiresReview = true always)
 - [ ] PR 19 — Supplier KvK/VAT auto-match with bank-risk guard (depends on PR 18; remove RequiresReview on safe KvK/VAT match)
