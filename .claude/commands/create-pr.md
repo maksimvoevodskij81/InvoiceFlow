@@ -1,42 +1,36 @@
-# Skill: Create PR for InvoiceFlow
+Create file .claude/commands/create-pr.md with this content:
 
-## Steps
+# Create PR
 
-1. Run full test suite first
-   dotnet test InvoiceFlow.Api.Tests\InvoiceFlow.Api.Tests.csproj
-   If any test fails — STOP. Do not commit. Report the failure.
+## Step 1 — Simplify first
+Run /simplify on all changed files.
+Review suggestions, apply only what makes sense.
+Skip suggestions that would change behavior.
 
-2. Show summary of changed files
-   git status
-   git diff --stat
+## Step 2 — Run full tests
+dotnet test InvoiceFlow.Api.Tests\InvoiceFlow.Api.Tests.csproj
 
-3. Stage only relevant files
-   git add <only the files changed for this task>
-   Never use git add . without listing what will be staged first.
+If any test fails — STOP. Fix first. Do not proceed.
 
-4. Commit with conventional message
-   Format: type(scope): short description
-   Types: feat | fix | refactor | test | chore
-   Examples:
-   - feat(extraction): add ExtractionFailed status
-   - fix(parser): handle null LlmExtractedFields
-   - refactor(upload): cast to IExtractionMetadataProvider
+## Step 3 — Show changed files
+git status
+git diff --stat
 
-5. Push
-   git push
+## Step 4 — Commit
+Stage only relevant files.
+Never git add . without showing file list first.
+Commit with conventional message (feat/fix/refactor/test/chore).
 
-6. Update PROGRESS.md
-   Mark completed item as [x]
-   Add next planned PR if known
+## Step 5 — Push
+git push
 
-7. Print summary
-   Files changed:
-   Tests: X passed, 0 failed
-   Risks: (any noted)
-   Next recommended step:
+## Step 6 — Update PROGRESS.md
+Mark current task as [x].
+Add next planned PR.
 
-## Rules
-- Never commit if tests fail
-- Never use git add . blindly
-- Never hardcode secrets
-- Always update PROGRESS.md after push
+## Step 7 — Summary
+Files changed:
+Tests: X passed
+Simplifications applied: yes/no
+Risks if any:
+Next recommended step:
