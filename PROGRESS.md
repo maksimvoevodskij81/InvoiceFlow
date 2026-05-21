@@ -23,7 +23,7 @@
 - [x] PR 16 — UploadedBy / ReviewedBy audit fields (JWT sub claim → nullable columns + migration; IInvoiceReviewService + IInvoiceUploadService signature change; GetCallerIdentity() in controller; 8 focused tests)
 
 ## Not started yet
-- [ ] PR 17 — Manual retry for ExtractionFailed invoices (POST /invoices/{id}/retry-extraction; new IInvoiceRetryService)
+- [x] PR 17 — Manual retry for ExtractionFailed invoices (POST /invoices/{id}/retry-extraction; new IInvoiceRetryService)
 - [ ] PR 18 — Supplier KvK/VAT matching, review-first (add KvK/VAT to InvoiceParseResult + SupplierMappingEntity; RequiresReview = true always)
 - [ ] PR 19 — Supplier KvK/VAT auto-match with bank-risk guard (depends on PR 18; remove RequiresReview on safe KvK/VAT match)
 - [ ] Real Claude API integration test with PDF
