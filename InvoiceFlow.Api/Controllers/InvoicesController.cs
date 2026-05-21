@@ -196,12 +196,12 @@ public sealed class InvoicesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> ApproveReview(
         string id,
-        [FromBody] ReviewDecisionRequest? request,
+        [FromBody] ApproveReviewRequest? request,
         CancellationToken cancellationToken)
     {
         try
         {
-            await _invoiceReviewService.ApproveAsync(id, request?.Comment, cancellationToken);
+            await _invoiceReviewService.ApproveAsync(id, request?.Comment, request?.AcceptedFields, cancellationToken);
             return Ok();
         }
         catch (KeyNotFoundException)

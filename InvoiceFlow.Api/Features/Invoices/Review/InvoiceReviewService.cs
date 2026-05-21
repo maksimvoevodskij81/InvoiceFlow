@@ -22,7 +22,7 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         _supplierCreateOutboxWriter = supplierCreateOutboxWriter;
     }
 
-    public async Task ApproveAsync(string invoiceId, string? reviewComment, CancellationToken cancellationToken = default)
+    public async Task ApproveAsync(string invoiceId, string? reviewComment, AcceptedInvoiceFields? acceptedFields = null, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(invoiceId);
 
@@ -46,6 +46,15 @@ public sealed class InvoiceReviewService : IInvoiceReviewService
         invoice.ReviewComment = string.IsNullOrWhiteSpace(reviewComment)
             ? null
             : reviewComment.Trim();
+
+        if (acceptedFields is not null)
+        {
+            if (acceptedFields.SupplierName is not null)  { invoice.AcceptedSupplierName  = acceptedFields.SupplierName;  invoice.SupplierName  = acceptedFields.SupplierName; }
+            if (acceptedFields.InvoiceNumber is not null) { invoice.AcceptedInvoiceNumber = acceptedFields.InvoiceNumber; invoice.InvoiceNumber = acceptedFields.InvoiceNumber; }
+            if (acceptedFields.InvoiceDate is not null)   { invoice.AcceptedInvoiceDate   = acceptedFields.InvoiceDate;   invoice.InvoiceDate   = acceptedFields.InvoiceDate; }
+            if (acceptedFields.TotalAmount is not null)   { invoice.AcceptedTotalAmount   = acceptedFields.TotalAmount;   invoice.TotalAmount   = acceptedFields.TotalAmount; }
+            if (acceptedFields.Currency is not null)      { invoice.AcceptedCurrency      = acceptedFields.Currency;      invoice.Currency      = acceptedFields.Currency; }
+        }
 
         if (!string.IsNullOrWhiteSpace(invoice.ExactSupplierId))
         {

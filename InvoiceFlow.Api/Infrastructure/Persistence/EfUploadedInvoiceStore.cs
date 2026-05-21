@@ -182,7 +182,12 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             RawExtractionJson = record.RawExtractionJson,
             ExtractionWarnings = record.ExtractionWarnings,
             ExtractionError = record.ExtractionError,
-            MatchReasons = record.MatchReasons
+            MatchReasons = record.MatchReasons,
+            AcceptedSupplierName  = record.AcceptedSupplierName,
+            AcceptedInvoiceNumber = record.AcceptedInvoiceNumber,
+            AcceptedInvoiceDate   = record.AcceptedInvoiceDate,
+            AcceptedTotalAmount   = record.AcceptedTotalAmount,
+            AcceptedCurrency      = record.AcceptedCurrency
         };
     }
 
@@ -228,7 +233,12 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
             RawExtractionJson = entity.RawExtractionJson,
             ExtractionWarnings = entity.ExtractionWarnings,
             ExtractionError = entity.ExtractionError,
-            MatchReasons = entity.MatchReasons
+            MatchReasons = entity.MatchReasons,
+            AcceptedSupplierName  = entity.AcceptedSupplierName,
+            AcceptedInvoiceNumber = entity.AcceptedInvoiceNumber,
+            AcceptedInvoiceDate   = entity.AcceptedInvoiceDate,
+            AcceptedTotalAmount   = entity.AcceptedTotalAmount,
+            AcceptedCurrency      = entity.AcceptedCurrency
         };
     }
 
@@ -272,5 +282,10 @@ public sealed class EfUploadedInvoiceStore : IUploadedInvoiceStore
         entity.ExtractionWarnings = record.ExtractionWarnings;
         entity.ExtractionError = record.ExtractionError;
         entity.MatchReasons = record.MatchReasons;
+        entity.AcceptedSupplierName  = record.AcceptedSupplierName;
+        entity.AcceptedInvoiceNumber = record.AcceptedInvoiceNumber;
+        entity.AcceptedInvoiceDate   = record.AcceptedInvoiceDate;
+        entity.AcceptedTotalAmount   = record.AcceptedTotalAmount;
+        entity.AcceptedCurrency      = record.AcceptedCurrency;
     }
 }

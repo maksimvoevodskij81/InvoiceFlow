@@ -53,7 +53,7 @@ public sealed class InvoiceReviewServiceTests
 
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
-        await service.ApproveAsync("invoice-1", null, CancellationToken.None);
+        await service.ApproveAsync("invoice-1", null, null, CancellationToken.None);
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-1", CancellationToken.None);
 
@@ -113,7 +113,7 @@ public sealed class InvoiceReviewServiceTests
 
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
-        await service.ApproveAsync("invoice-2", null, CancellationToken.None);
+        await service.ApproveAsync("invoice-2", null, null, CancellationToken.None);
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-2", CancellationToken.None);
 
@@ -174,7 +174,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.ApproveAsync("invoice-3", null, CancellationToken.None));
+            () => service.ApproveAsync("invoice-3", null, null, CancellationToken.None));
 
         Assert.Contains("not in 'NeedsReview' status", exception.Message);
     }
@@ -225,7 +225,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var beforeReview = DateTime.UtcNow;
-        await service.ApproveAsync("invoice-8", null, CancellationToken.None);
+        await service.ApproveAsync("invoice-8", null, null, CancellationToken.None);
         var afterReview = DateTime.UtcNow;
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-8", CancellationToken.None);
@@ -288,7 +288,7 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var reviewComment = "Approved after manual review.";
-        await service.ApproveAsync("invoice-10", reviewComment, CancellationToken.None);
+        await service.ApproveAsync("invoice-10", reviewComment, null, CancellationToken.None);
 
         var updatedInvoice = await uploadedInvoiceStore.GetByIdAsync("invoice-10", CancellationToken.None);
 
@@ -582,8 +582,136 @@ public sealed class InvoiceReviewServiceTests
         await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            () => service.ApproveAsync("invoice-4", null, CancellationToken.None));
+            () => service.ApproveAsync("invoice-4", null, null, CancellationToken.None));
 
         Assert.Contains("no safe next step", exception.Message);
     }
+
+    [Fact]
+    public async Task ApproveAsync_WithAcceptedFields_OverwritesMainColumns()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var service = new InvoiceReviewService(uploadedInvoiceStore, new FakeExactPostOutboxWriter(), new FakeSupplierCreateOutboxWriter());
+
+        var invoice = BuildNeedsReviewInvoice("invoice-acc-1");
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        var accepted = new AcceptedInvoiceFields
+        {
+            SupplierName  = "Corrected BV",
+            InvoiceNumber = "INV-CORRECTED",
+            InvoiceDate   = new DateOnly(2026, 3, 1),
+            TotalAmount   = 999.99m,
+            Currency      = "GBP"
+        };
+
+        await service.ApproveAsync("invoice-acc-1", null, accepted, CancellationToken.None);
+
+        var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-1", CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal("Corrected BV",   updated.SupplierName);
+        Assert.Equal("INV-CORRECTED",  updated.InvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 3, 1), updated.InvoiceDate);
+        Assert.Equal(999.99m,          updated.TotalAmount);
+        Assert.Equal("GBP",            updated.Currency);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_WithAcceptedFields_StoresAcceptedColumns()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var service = new InvoiceReviewService(uploadedInvoiceStore, new FakeExactPostOutboxWriter(), new FakeSupplierCreateOutboxWriter());
+
+        var invoice = BuildNeedsReviewInvoice("invoice-acc-2");
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        var accepted = new AcceptedInvoiceFields
+        {
+            SupplierName  = "Corrected BV",
+            InvoiceNumber = "INV-CORRECTED",
+            InvoiceDate   = new DateOnly(2026, 3, 1),
+            TotalAmount   = 999.99m,
+            Currency      = "GBP"
+        };
+
+        await service.ApproveAsync("invoice-acc-2", null, accepted, CancellationToken.None);
+
+        var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-2", CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal("Corrected BV",            updated.AcceptedSupplierName);
+        Assert.Equal("INV-CORRECTED",           updated.AcceptedInvoiceNumber);
+        Assert.Equal(new DateOnly(2026, 3, 1),  updated.AcceptedInvoiceDate);
+        Assert.Equal(999.99m,                   updated.AcceptedTotalAmount);
+        Assert.Equal("GBP",                     updated.AcceptedCurrency);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_WithNullAcceptedFields_LeavesMainColumnsUnchanged()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var service = new InvoiceReviewService(uploadedInvoiceStore, new FakeExactPostOutboxWriter(), new FakeSupplierCreateOutboxWriter());
+
+        var invoice = BuildNeedsReviewInvoice("invoice-acc-3");
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        await service.ApproveAsync("invoice-acc-3", null, acceptedFields: null, CancellationToken.None);
+
+        var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-3", CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal("Original Supplier", updated.SupplierName);
+        Assert.Equal("INV-ORIG",          updated.InvoiceNumber);
+        Assert.Equal(100.00m,             updated.TotalAmount);
+        Assert.Equal("EUR",               updated.Currency);
+        Assert.Null(updated.AcceptedSupplierName);
+        Assert.Null(updated.AcceptedInvoiceNumber);
+    }
+
+    [Fact]
+    public async Task ApproveAsync_WithPartialAcceptedFields_OnlyOverwritesNonNullFields()
+    {
+        var uploadedInvoiceStore = new FakeUploadedInvoiceStore();
+        var service = new InvoiceReviewService(uploadedInvoiceStore, new FakeExactPostOutboxWriter(), new FakeSupplierCreateOutboxWriter());
+
+        var invoice = BuildNeedsReviewInvoice("invoice-acc-4");
+        await uploadedInvoiceStore.SaveAsync(invoice, CancellationToken.None);
+
+        var accepted = new AcceptedInvoiceFields
+        {
+            TotalAmount = 500.00m
+        };
+
+        await service.ApproveAsync("invoice-acc-4", null, accepted, CancellationToken.None);
+
+        var updated = await uploadedInvoiceStore.GetByIdAsync("invoice-acc-4", CancellationToken.None);
+
+        Assert.NotNull(updated);
+        Assert.Equal("Original Supplier", updated.SupplierName);
+        Assert.Equal("INV-ORIG",          updated.InvoiceNumber);
+        Assert.Equal(500.00m,             updated.TotalAmount);
+        Assert.Equal("EUR",               updated.Currency);
+        Assert.Null(updated.AcceptedSupplierName);
+        Assert.Equal(500.00m,             updated.AcceptedTotalAmount);
+        Assert.Null(updated.AcceptedCurrency);
+    }
+
+    private static UploadedInvoiceRecord BuildNeedsReviewInvoice(string invoiceId) => new()
+    {
+        InvoiceId        = invoiceId,
+        OriginalFileName = "invoice.pdf",
+        StoredFilePath   = "path",
+        Status           = InvoiceStatuses.NeedsReview,
+        Message          = "Needs review",
+        CreatedAtUtc     = DateTime.UtcNow,
+        FileHash         = "hash",
+        SupplierName     = "Original Supplier",
+        InvoiceNumber    = "INV-ORIG",
+        InvoiceDate      = new DateOnly(2026, 1, 1),
+        TotalAmount      = 100.00m,
+        Currency         = "EUR",
+        ExactSupplierId  = "exact-1",
+        CanCreateSupplier = false
+    };
 }

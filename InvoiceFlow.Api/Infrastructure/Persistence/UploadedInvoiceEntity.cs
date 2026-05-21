@@ -70,4 +70,10 @@ public sealed class UploadedInvoiceEntity
     public string? ExtractionError { get; set; }
 
     public List<string> MatchReasons { get; set; } = new();
+
+    public string?   AcceptedSupplierName  { get; set; }
+    public string?   AcceptedInvoiceNumber { get; set; }
+    public DateOnly? AcceptedInvoiceDate   { get; set; }
+    public decimal?  AcceptedTotalAmount   { get; set; }
+    public string?   AcceptedCurrency      { get; set; }
 }

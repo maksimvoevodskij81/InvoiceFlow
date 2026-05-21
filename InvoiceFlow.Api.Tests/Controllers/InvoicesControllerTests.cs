@@ -935,7 +935,7 @@ public sealed class InvoicesControllerTests
             new InvoiceParseResultValidator(),
             fakeReviewService);
 
-        var request = new ReviewDecisionRequest
+        var request = new ApproveReviewRequest
         {
             Comment = "Approving with no issues."
         };

@@ -20,11 +20,14 @@ public sealed class FakeInvoiceReviewService : IInvoiceReviewService
 
     public Exception? RejectException { get; set; }
 
-    public Task ApproveAsync(string invoiceId, string? reviewComment, CancellationToken cancellationToken = default)
+    public AcceptedInvoiceFields? LastAcceptedFields { get; private set; }
+
+    public Task ApproveAsync(string invoiceId, string? reviewComment, AcceptedInvoiceFields? acceptedFields = null, CancellationToken cancellationToken = default)
     {
         ApproveCallsCount++;
         LastApprovedInvoiceId = invoiceId;
         LastApprovedReviewComment = reviewComment;
+        LastAcceptedFields = acceptedFields;
 
         if (ApproveException is not null)
         {
