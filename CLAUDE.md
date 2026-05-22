@@ -41,13 +41,15 @@ InvoiceParseResult
 
 This contract should stay unchanged unless explicitly approved.
 
-Production parser (Real mode, wired via config-based DI switch):
+Current parser wired in DI:
 
-LlmInvoiceParser : IInvoiceParser  — backed by ClaudeInvoiceExtractor
+LlmInvoiceParser : IInvoiceParser
 
-Demo/fallback parser:
+Extractor mode is config-based:
+- Demo mode: LlmInvoiceParser backed by DemoLlmInvoiceExtractor
+- Real mode: LlmInvoiceParser backed by ClaudeInvoiceExtractor
 
-FakeInvoiceParser : IInvoiceParser
+FakeInvoiceParser is a local fake/test utility, not the current DI parser.
 
 LLM types:
 
@@ -265,7 +267,9 @@ All extraction stages are complete and wired:
 - IInvoiceTextExtractor / PdfPigTextExtractor — text extraction from PDFs
 - ClaudePromptBuilder — prompt construction
 - ClaudeInvoiceExtractor — real Claude API via HttpClient
-- LlmInvoiceParser wired into DI (Real mode via config switch)
+- LlmInvoiceParser wired into DI in all modes; extractor selection is config-based:
+  - Demo mode uses DemoLlmInvoiceExtractor
+  - Real mode uses ClaudeInvoiceExtractor
 - Opt-in integration tests: RUN_CLAUDE_INTEGRATION_TESTS=true + ANTHROPIC_API_KEY
 
 PdfPig is for text-based PDFs. Scanned PDFs need OCR — not yet implemented.
