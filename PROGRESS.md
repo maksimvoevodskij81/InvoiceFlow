@@ -1,5 +1,8 @@
 # InvoiceFlow — Progress
 
+This file is **project history** — completed PRs and architectural decisions.
+For the active task queue, see TASKS.md.
+
 ## Done
 - [x] PR 1 — LLM extraction foundation (models, ILlmInvoiceExtractor, LlmInvoiceParser, PdfPigTextExtractor, DI wiring)
 - [x] PR 2 — ClaudePromptBuilder (Build(text) → ClaudePrompt with system prompt + user message)

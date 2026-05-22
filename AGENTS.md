@@ -314,3 +314,19 @@ Keep the summary short and practical.
 - Agents must not edit files during analysis-only requests.
 - Claude should implement only after the plan is approved.
 - Codex should review plans/diffs and return APPROVE or NEEDS CHANGES.
+- The user gives final approval before a PR is merged. Agents may prepare branches,
+  tests, summaries, and PR descriptions, but must not merge PRs unless the user
+  explicitly asks.
+
+## Parallel work
+
+- Run tasks in parallel only when their likely changed files and ownership boundaries
+  do not overlap.
+- Use a separate branch and separate worktree for each parallel task.
+- Do not have two agents edit the same workflow area at the same time unless the user
+  explicitly coordinates it.
+- If overlap is discovered during implementation, stop and ask the user which
+  branch/task should continue.
+- Prefer sequential work for changes touching core workflow files: Program.cs,
+  InvoiceUploadService, InvoiceRetryService, InvoicesController, EF migrations,
+  and shared DTOs.
