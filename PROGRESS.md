@@ -22,12 +22,13 @@
 - [x] PR 15 — Expose ExtractedFields in GetInvoiceDetailsResponse (ExtractedInvoiceFieldsResponse DTO; deserialized from RawExtractionJson; null-safe + malformed-JSON-safe; no migration; 4 focused tests)
 - [x] PR 16 — UploadedBy / ReviewedBy audit fields (JWT sub claim → nullable columns + migration; IInvoiceReviewService + IInvoiceUploadService signature change; GetCallerIdentity() in controller; 8 focused tests)
 
-## Not started yet
 - [x] PR 17 — Manual retry for ExtractionFailed invoices (POST /invoices/{id}/retry-extraction; new IInvoiceRetryService)
 - [x] PR 18 — Supplier KvK/VAT matching, review-first (add KvK/VAT to InvoiceParseResult + SupplierMappingEntity; RequiresReview = true always)
 - [x] PR 19 — Supplier KvK/VAT auto-match with bank-risk guard (depends on PR 18; remove RequiresReview on safe KvK/VAT match)
 - [x] PR 20 — Real Claude API smoke test with PDF (PdfPigTextExtractor + in-process PDF fixture; pre-Claude extraction assertion; skipped by default)
-- [ ] G/L Account suggestion (future — stays manual input during review for now)
+
+## Deferred
+- [ ] G/L Account suggestion — stays manual input during review; deferred until Exact supplier profiles are queryable
 
 ## Supplier matching context (from real Exact Online data)
 

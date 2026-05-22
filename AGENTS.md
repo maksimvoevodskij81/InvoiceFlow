@@ -41,11 +41,15 @@ InvoiceParseResult
 
 This contract should stay unchanged unless explicitly approved.
 
-Current production parser:
+Production parser (Real mode, wired via config-based DI switch):
+
+LlmInvoiceParser : IInvoiceParser  — backed by ClaudeInvoiceExtractor
+
+Demo/fallback parser:
 
 FakeInvoiceParser : IInvoiceParser
 
-New LLM foundation:
+LLM types:
 
 LlmInvoiceParser : IInvoiceParser
 ILlmInvoiceExtractor
@@ -69,11 +73,10 @@ PDF/image invoice
 → InvoiceParseResult
 → existing validation/matching/review/outbox flow
 
-For now:
+Standing rules:
 
-Do not call real Codex API unless explicitly asked.
+Do not call real Claude API unless explicitly asked.
 Do not add API keys to source code.
-Do not wire LLM parser into DI unless explicitly asked.
 Do not modify Program.cs unless the task explicitly includes DI wiring.
 Do not change IInvoiceParser signature.
 Extraction metadata
@@ -153,6 +156,8 @@ IExactPostOutboxWriter
 ISupplierCreateOutboxWriter
 IInvoiceReviewService
 InvoiceReviewService
+IInvoiceRetryService
+InvoiceRetryService
 InvoicesController
 Coding rules
 
@@ -232,7 +237,7 @@ user secrets locally
 environment variables
 Key Vault later
 
-For Codex/Anthropic integration, API key must come from configuration, not source code.
+For Claude/Anthropic integration, API key must come from configuration, not source code.
 
 Preferred PR style
 
@@ -243,7 +248,7 @@ Good PR examples:
 add LLM extraction models
 add LLM parser adapter
 add PDF text extractor
-add Codex prompt builder
+add Claude prompt builder
 add supplier scoring logic
 add one endpoint
 add one persistence field + migration
@@ -252,34 +257,18 @@ Bad PR examples:
 
 rewrite parser + supplier matching + Exact integration together
 change IInvoiceParser and review flow in same PR
-add real Codex API and OCR and Exact posting together
+add real Claude API and OCR and Exact posting together
 Current LLM implementation status
 
-The first LLM foundation should include only:
+All extraction stages are complete and wired:
 
-extraction models
-ILlmInvoiceExtractor
-DemoLlmInvoiceExtractor
-LlmInvoiceParser : IInvoiceParser
-LlmInvoiceParserTests
+- IInvoiceTextExtractor / PdfPigTextExtractor — text extraction from PDFs
+- ClaudePromptBuilder — prompt construction
+- ClaudeInvoiceExtractor — real Claude API via HttpClient
+- LlmInvoiceParser wired into DI (Real mode via config switch)
+- Opt-in integration tests: RUN_CLAUDE_INTEGRATION_TESTS=true + ANTHROPIC_API_KEY
 
-It should not wire LLM parser into app DI yet.
-
-When implementing real Codex extraction later
-
-Recommended stages:
-
-Add IInvoiceTextExtractor
-Add PdfPigTextExtractor
-Add ClaudePromptBuilder
-Add ClaudeInvoiceExtractor
-Test using fake HTTP handler
-Add config-based DI switch
-Only then test with real API
-
-PdfPig is for text-based PDFs.
-
-Scanned PDFs need OCR later.
+PdfPig is for text-based PDFs. Scanned PDFs need OCR — not yet implemented.
 
 Error handling guidance
 
